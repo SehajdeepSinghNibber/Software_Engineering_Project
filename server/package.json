@@ -1,14 +1,14 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "Backend API for Pingly A chat application",
-  "homepage": "https://github.com/SehajdeepSinghNibber/Pingly#readme",
+  "description": "Backend API for Software project",
+  "homepage": "https://github.com/SehajdeepSinghNibber/Software#readme",
   "bugs": {
-    "url": "https://github.com/SehajdeepSinghNibber/Pingly/issues"
+    "url": "https://github.com/SehajdeepSinghNibber/Software/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SehajdeepSinghNibber/Pingly.git"
+    "url": "git+https://github.com/SehajdeepSinghNibber/Software_Engineering_Project.git"
   },
   "license": "ISC",
   "author": "Sehajdeep Singh",
@@ -21,7 +21,7 @@
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^11.3.0",
-    "@fastify/helmet": "^13.1.0",
+    "@fastify/helmet": "^13.1.1",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
     "dotenv": "^17.4.2",
