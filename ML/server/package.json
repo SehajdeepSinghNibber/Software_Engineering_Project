@@ -1,0 +1,36 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "Backend API for Software project",
+  "homepage": "https://github.com/SehajdeepSinghNibber/Software#readme",
+  "bugs": {
+    "url": "https://github.com/SehajdeepSinghNibber/Software/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SehajdeepSinghNibber/Software_Engineering_Project.git"
+  },
+  "license": "ISC",
+  "author": "Sehajdeep Singh",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.12.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.2",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
