@@ -13,7 +13,10 @@ const config = {
     // cookie). The client runs on a different port than the API, so a concrete
     // origin is required — "*" cannot be combined with credentials. Comma-
     // separated to support multiple environments (e.g. dev + preview ports).
-    CLIENT_ORIGIN : (process.env.CLIENT_ORIGIN || "http://localhost:3000")
+    // The default covers Next.js dev ports: 3000, plus the automatic fallbacks
+    // Next picks (3001/3002) when 3000 is occupied.
+    CLIENT_ORIGIN : (process.env.CLIENT_ORIGIN ||
+        "http://localhost:3000,http://localhost:3001,http://localhost:3002")
         .split(",")
         .map((origin) => origin.trim())
         .filter(Boolean),

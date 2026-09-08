@@ -13,9 +13,18 @@ const app = Fastify({
 
 await app.register(helmet);
 await app.register(cors, {
-  // Must echo a concrete origin (see CLIENT_ORIGIN) because the session is a
-  // cookie and "*" is rejected by browsers for credentialed requests.
-  origin: config.CLIENT_ORIGIN,
+  // The session is a JWT cookie, so "*" can never be used — the concrete
+  // origin must be reflected. Allowed origins come from CLIENT_ORIGIN; in
+  // development any localhost/127.0.0.1 origin is also accepted so Next.js
+  // automatic port fallbacks (3001, 3002, …) can never break the app.
+  origin: (requestOrigin, cb) => {
+    if (!requestOrigin) return cb(null, false); // non-browser request
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(requestOrigin);
+    if (config.CLIENT_ORIGIN.includes(requestOrigin) || (config.NODE_ENV !== "production" && isLocalhost)) {
+      return cb(null, requestOrigin);
+    }
+    cb(null, false);
+  },
   credentials: true,
 });
 await app.register(cookie);
