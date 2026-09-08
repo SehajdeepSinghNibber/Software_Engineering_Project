@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Environment / secrets
+.env
+
+# Editor
+.idea/
+.vscode/
+
+# Potential model weights / test artifacts
+*.pt
+*.pth
+*.ckpt
+*.onnx
+tests_data/

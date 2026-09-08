@@ -9,6 +9,7 @@ export const generateToken=(userId, reply)=>{
 
     reply.setCookie("jwt",token,{
         maxAge: 7*24*60*60, // seconds due to fastify cookie parser
+        path: "/", // make the token valid for every route, not just /api/v1/auth
         httpOnly: true, // prevents XSS attacks cross-site scripting attacks
         sameSite: "strict", // CSRF attacks cross-site request forgery attacks
         secure: config.NODE_ENV !== "development"
