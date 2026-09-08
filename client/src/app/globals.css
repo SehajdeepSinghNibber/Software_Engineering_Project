@@ -1,2 +1,109 @@
 @import "tailwindcss";
-@plugin "daisyui";
+
+@plugin "daisyui" {
+  themes: false;
+}
+
+/*
+ * "caramellatte" — refined.
+ * Palette values come from daisyUI 5.7.23's stock theme; we tighten the radii
+ * and hairlines for a crisper, more enterprise feel and darken `error` so it
+ * passes AA contrast when used as text on the cream base.
+ */
+@plugin "daisyui/theme" {
+  name: "caramellatte";
+  default: true;
+  color-scheme: light;
+
+  --color-base-100: oklch(98% 0.016 73.684);
+  --color-base-200: oklch(95% 0.038 75.164);
+  --color-base-300: oklch(90% 0.076 70.697);
+  --color-base-content: oklch(34% 0.115 38.172);
+
+  --color-primary: oklch(0% 0 0);
+  --color-primary-content: oklch(100% 0 0);
+  --color-secondary: oklch(22.45% 0.075 37.85);
+  --color-secondary-content: oklch(90% 0.076 70.697);
+  --color-accent: oklch(46.44% 0.111 37.85);
+  --color-accent-content: oklch(90% 0.076 70.697);
+  --color-neutral: oklch(55% 0.195 38.402);
+  --color-neutral-content: oklch(98% 0.016 73.684);
+
+  --color-info: oklch(42% 0.199 265.638);
+  --color-info-content: oklch(90% 0.076 70.697);
+  --color-success: oklch(43% 0.095 166.913);
+  --color-success-content: oklch(90% 0.076 70.697);
+  --color-warning: oklch(82% 0.189 84.429);
+  --color-warning-content: oklch(41% 0.112 45.904);
+  --color-error: oklch(53% 0.19 26);
+  --color-error-content: oklch(96% 0.02 73.684);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1.5px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  ::selection {
+    background-color: var(--color-base-content);
+    color: var(--color-base-100);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-base-300) transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-base-content);
+    outline-offset: 2px;
+  }
+}
+
+/* Checkerboard backdrop for image canvases (reveals transparency cleanly). */
+@utility bg-checker {
+  background-image: conic-gradient(
+    var(--color-base-200) 0 25%,
+    transparent 0 50%,
+    var(--color-base-200) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+}
+
+/* Faint dotted texture for hero / section backgrounds. */
+@utility bg-dotgrid {
+  background-image: radial-gradient(
+    color-mix(in oklab, var(--color-base-content) 9%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}

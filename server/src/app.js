@@ -13,7 +13,9 @@ const app = Fastify({
 
 await app.register(helmet);
 await app.register(cors, {
-  origin: "http://localhost:3000",
+  // Must echo a concrete origin (see CLIENT_ORIGIN) because the session is a
+  // cookie and "*" is rejected by browsers for credentialed requests.
+  origin: config.CLIENT_ORIGIN,
   credentials: true,
 });
 await app.register(cookie);

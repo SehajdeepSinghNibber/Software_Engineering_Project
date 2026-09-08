@@ -105,7 +105,7 @@ export const login = async (request, reply) => {
 
 export const signout = async (request, reply) => {
   try {
-    reply.cookie("jwt");
+    reply.clearCookie("jwt", { path: "/" });
 
     return reply.code(200).send({
             message: "Logged out successfully"
@@ -125,7 +125,7 @@ export const updateProfile = async (request, reply) => {
         
         const { profilePic } = request.body;
 
-        const userId = req.user._id;
+        const userId = request.user._id;
 
         if(!profilePic){
             return reply.code(400).send({
@@ -136,7 +136,7 @@ export const updateProfile = async (request, reply) => {
         const uploadResponse = await cloudinary.uploader.upload(profilePic);
         const updatedUser = await User.findByIdAndUpdate(userId, {
             profilePic: uploadResponse.secure_url
-        },{new: true});
+        },{new: true}).select("-password");
 
         reply.code(200).send(updatedUser);
 

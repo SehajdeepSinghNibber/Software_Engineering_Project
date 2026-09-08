@@ -8,6 +8,16 @@ const config = {
     JWT_SECRET : process.env.JWT_SECRET ,
     NODE_ENV : process.env.NODE_ENV,
 
+    // --- CORS ---------------------------------------------------------------
+    // Browser origins allowed to call the API with credentials (the JWT
+    // cookie). The client runs on a different port than the API, so a concrete
+    // origin is required — "*" cannot be combined with credentials. Comma-
+    // separated to support multiple environments (e.g. dev + preview ports).
+    CLIENT_ORIGIN : (process.env.CLIENT_ORIGIN || "http://localhost:3000")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+
     // --- ML inference service configuration -------------------------------
     // Base URL of the Python (FastAPI) de-hazing inference service.
     ML_SERVICE_URL : process.env.ML_SERVICE_URL || "http://127.0.0.1:8100",

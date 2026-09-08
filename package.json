@@ -1,0 +1,16 @@
+{
+  "name": "software-engineering-project",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ClearLens — image de-hazing platform. Runs the ML inference service, the Fastify API and the Next.js client together in development.",
+  "scripts": {
+    "dev": "concurrently -k -n ml,api,web -c yellow,cyan,green \"npm:ml\" \"npm:api\" \"npm:web\"",
+    "ml": "cd ML\\inference_service && .venv\\Scripts\\python.exe app.py",
+    "api": "npm run dev --prefix server",
+    "web": "npm run dev --prefix client",
+    "setup": "npm install && npm install --prefix server && npm install --prefix client && python -m venv ML\\inference_service\\.venv && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install -r ML\\inference_service\\requirements.txt"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
