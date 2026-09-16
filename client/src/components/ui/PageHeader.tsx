@@ -13,7 +13,7 @@ export function PageHeader({
   return (
     <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div className="max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
+        <h1 className="font-display text-2xl font-semibold tracking-[0.01em] text-ink sm:text-[1.75rem]">
           {title}
         </h1>
         {description && (

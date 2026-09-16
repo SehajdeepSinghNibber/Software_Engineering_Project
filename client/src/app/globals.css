@@ -5,57 +5,75 @@
 }
 
 /*
- * "caramellatte" — refined.
- * Palette values come from daisyUI 5.7.23's stock theme; we tighten the radii
- * and hairlines for a crisper, more enterprise feel and darken `error` so it
- * passes AA contrast when used as text on the cream base.
+ * "clearlens" — the ClearLens design system.
+ * Cream linen base, dark-maroon accent, warm brown-gray body text.
+ * Palette: base #FDF6EC · maroon #5C1A0E · ink #2A1810 · clay #6E5B4C · sand #EBDCC3.
  */
 @plugin "daisyui/theme" {
-  name: "caramellatte";
+  name: "clearlens";
   default: true;
   color-scheme: light;
 
-  --color-base-100: oklch(98% 0.016 73.684);
-  --color-base-200: oklch(95% 0.038 75.164);
-  --color-base-300: oklch(90% 0.076 70.697);
-  --color-base-content: oklch(34% 0.115 38.172);
+  --color-base-100: #fdf6ec;
+  --color-base-200: #f7eddd;
+  --color-base-300: #ebdcc3;
+  --color-base-content: #4a3a2e;
 
-  --color-primary: oklch(0% 0 0);
-  --color-primary-content: oklch(100% 0 0);
-  --color-secondary: oklch(22.45% 0.075 37.85);
-  --color-secondary-content: oklch(90% 0.076 70.697);
-  --color-accent: oklch(46.44% 0.111 37.85);
-  --color-accent-content: oklch(90% 0.076 70.697);
-  --color-neutral: oklch(55% 0.195 38.402);
-  --color-neutral-content: oklch(98% 0.016 73.684);
+  --color-primary: #5c1a0e;
+  --color-primary-content: #fdf6ec;
+  --color-secondary: #7a4a36;
+  --color-secondary-content: #fdf6ec;
+  --color-accent: #a05c3b;
+  --color-accent-content: #fdf6ec;
+  --color-neutral: #2a1810;
+  --color-neutral-content: #fdf6ec;
 
-  --color-info: oklch(42% 0.199 265.638);
-  --color-info-content: oklch(90% 0.076 70.697);
-  --color-success: oklch(43% 0.095 166.913);
-  --color-success-content: oklch(90% 0.076 70.697);
-  --color-warning: oklch(82% 0.189 84.429);
-  --color-warning-content: oklch(41% 0.112 45.904);
-  --color-error: oklch(53% 0.19 26);
-  --color-error-content: oklch(96% 0.02 73.684);
+  --color-info: #2f5d8a;
+  --color-info-content: #fdf6ec;
+  --color-success: #3e6b4f;
+  --color-success-content: #fdf6ec;
+  --color-warning: #b98a2f;
+  --color-warning-content: #2a1810;
+  --color-error: #a8321e;
+  --color-error-content: #fdf6ec;
 
-  --radius-selector: 0.5rem;
-  --radius-field: 0.375rem;
-  --radius-box: 0.75rem;
+  --radius-selector: 0.625rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
-  --border: 1.5px;
-  --depth: 1;
+  --border: 1px;
+  --depth: 0;
   --noise: 0;
 }
 
+/* Fonts loaded via next/font in layout.tsx, mapped into the utility scale. */
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+}
+
+/* Brand tokens — usable as bg-maroon, text-ink, border-sand, shadow-card, … */
 @theme {
-  --animate-fade-up: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --color-ink: #2a1810;
+  --color-clay: #6e5b4c;
+  --color-maroon: #5c1a0e;
+  --color-maroon-deep: #45130a;
+  --color-cream: #fdf6ec;
+  --color-sand: #ebdcc3;
+  --color-parchment: #f7eddd;
+
+  --shadow-card: 0 1px 2px rgb(42 24 16 / 0.05), 0 10px 28px -14px rgb(42 24 16 / 0.16);
+  --shadow-lift: 0 2px 6px rgb(42 24 16 / 0.08), 0 24px 48px -20px rgb(42 24 16 / 0.3);
+
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -73,8 +91,8 @@
   }
 
   ::selection {
-    background-color: var(--color-base-content);
-    color: var(--color-base-100);
+    background-color: var(--color-maroon);
+    color: var(--color-cream);
   }
 
   * {
@@ -83,9 +101,88 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-base-content);
+    outline: 2px solid var(--color-maroon);
     outline-offset: 2px;
   }
+}
+
+@layer components {
+  /* Marketing button system — solid maroon pill with a gentle lift on hover. */
+  .btn-pill {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all duration-200 select-none;
+  }
+  .btn-pill-primary {
+    @apply bg-maroon text-cream shadow-card hover:-translate-y-px hover:bg-maroon-deep hover:shadow-lift active:translate-y-0 active:shadow-card;
+  }
+  .btn-pill-inverse {
+    @apply bg-cream text-maroon shadow-card hover:-translate-y-px hover:bg-white hover:shadow-lift active:translate-y-0;
+  }
+
+  /* Quiet secondary action — plain text link with a trailing chevron. */
+  .link-chevron {
+    @apply inline-flex items-center gap-1.5 text-sm font-semibold text-ink transition-colors duration-200 hover:text-maroon;
+  }
+
+  /* Eyebrow badge above headlines. */
+  .badge-pill {
+    @apply inline-flex items-center gap-2 rounded-full border border-sand bg-white/70 px-3.5 py-1.5 text-xs font-medium tracking-wide text-clay;
+  }
+  .badge-pill-dot {
+    @apply h-1.5 w-1.5 shrink-0 rounded-full bg-maroon;
+  }
+
+  /* The standard marketing card — consistent across every page. */
+  .card-luxe {
+    @apply rounded-2xl border border-sand bg-white/75 shadow-card;
+  }
+}
+
+/*
+ * Draggable handle for the hero comparison slider (react-compare-slider).
+ * Styled in plain CSS because the handle lives inside the library's DOM;
+ * hover/active states scale the grip and warm its fill.
+ */
+.rcs-handle {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  cursor: ew-resize;
+  pointer-events: none;
+}
+.rcs-handle-line {
+  flex-grow: 1;
+  width: 2px;
+  border-radius: 9999px;
+  background-color: rgb(255 255 255 / 0.95);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.16),
+    0 0 6px rgb(0 0 0 / 0.35);
+  pointer-events: auto;
+}
+.rcs-handle-btn {
+  flex-shrink: 0;
+  display: grid;
+  place-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0.625rem 0;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background-color: rgb(42 24 16 / 0.45);
+  color: #fff;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease;
+}
+.rcs-handle:hover .rcs-handle-btn,
+.rcs-handle:active .rcs-handle-btn {
+  transform: scale(1.1);
+  background-color: rgb(92 26 14 / 0.78);
 }
 
 /* Checkerboard backdrop for image canvases (reveals transparency cleanly). */
@@ -99,7 +196,7 @@
   background-size: 16px 16px;
 }
 
-/* Faint dotted texture for hero / section backgrounds. */
+/* Faint dotted texture — retained for in-app accents. */
 @utility bg-dotgrid {
   background-image: radial-gradient(
     color-mix(in oklab, var(--color-base-content) 9%, transparent) 1px,

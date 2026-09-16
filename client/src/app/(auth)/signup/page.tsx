@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -59,8 +60,10 @@ export default function SignupPage() {
   };
 
   return (
-    <section className="animate-fade-up rounded-box border border-base-300/70 bg-base-100 p-6 sm:p-8">
-      <h1 className="text-xl font-semibold tracking-tight">Create your account</h1>
+    <section className="animate-fade-up card-luxe p-6 sm:p-8">
+      <h1 className="font-display text-2xl font-semibold tracking-[0.01em] text-ink">
+        Create your account
+      </h1>
       <p className="mt-1.5 text-sm text-base-content/60">
         One account for the whole de-hazing workspace.
       </p>
@@ -126,15 +129,28 @@ export default function SignupPage() {
 
         {serverError && <Notice variant="error">{serverError}</Notice>}
 
-        <button type="submit" disabled={submitting} className="btn btn-primary mt-2 w-full">
-          {submitting && <span className="loading loading-spinner loading-xs" />}
-          {submitting ? "Creating account…" : "Create account"}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn-pill btn-pill-primary mt-2 w-full py-3 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Creating account…
+            </>
+          ) : (
+            "Create account"
+          )}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-base-content/60">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium underline underline-offset-2 hover:opacity-80">
+        <Link
+          href="/login"
+          className="font-medium text-maroon underline underline-offset-2 transition-colors duration-200 hover:text-maroon-deep"
+        >
           Sign in
         </Link>
       </p>
