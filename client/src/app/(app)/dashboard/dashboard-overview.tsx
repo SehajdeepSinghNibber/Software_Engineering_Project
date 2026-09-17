@@ -8,7 +8,7 @@ import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { useModels } from "@/hooks/useModels";
-import { formatDateTime, formatMs, formatUptime } from "@/lib/format";
+import { formatDateTime, formatMs } from "@/lib/format";
 import { clearHistory, getHistory } from "@/lib/history";
 import type { HistoryEntry } from "@/lib/types";
 import { useEffect, useState } from "react";
@@ -22,7 +22,7 @@ function greeting(): string {
 
 export default function DashboardOverview() {
   const { user } = useSession();
-  const { models, health, loading } = useModels();
+  const { health, loading } = useModels();
   const [history, setHistory] = useState<HistoryEntry[] | null>(null);
 
   // Read localStorage after mount (SSR-safe).
@@ -51,30 +51,21 @@ export default function DashboardOverview() {
       {/* Service snapshot */}
       <section className="rounded-box border border-base-300/70 bg-base-100 px-5 py-4">
         {loading ? (
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            {[0, 1].map((i) => (
               <div key={i} className="skeleton h-10" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             <Stat
               label="Inference service"
               value={serviceOnline ? "Online" : "Offline"}
               hint={serviceOnline ? health!.status : "not reachable"}
             />
             <Stat
-              label="Uptime"
-              value={serviceOnline ? formatUptime(health!.uptimeSeconds) : "—"}
-            />
-            <Stat
               label="Default model"
               value={serviceOnline ? health!.model : "—"}
-            />
-            <Stat
-              label="Architectures"
-              value={models ? String(models.length) : "—"}
-              hint="registered"
             />
           </div>
         )}
