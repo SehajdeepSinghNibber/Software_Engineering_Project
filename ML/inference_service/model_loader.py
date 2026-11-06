@@ -1,11 +1,11 @@
 """Model registry and lazy loader for the dehazing architectures.
 
 The service is a thin, well-defined inference layer around the research models
-that live in ``ML/baselines``.  Models are loaded lazily (a single time) and
-cached in memory for subsequent requests.  If ``ML_MODEL_PATH`` points to a
-trained checkpoint file it is applied on top of the architecture; otherwise the
-architecture runs with random weights (suitable for smoke tests only) and the
-response headers clearly advertise the weights state via ``X-Weights-State``.
+that live in ``ML/baselines``. Models are loaded lazily (a single time) and
+cached in memory for subsequent requests. Model-specific checkpoints are
+discovered in ``ML/checkpoints`` or configured via environment variables. If
+no checkpoint exists the architecture runs with random weights (suitable for
+smoke tests only), and response headers clearly report the weights state.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any, Callable, Optional
 
 import torch
 
-from config import BASELINES_DIR, DEHAMER_DIR, settings
+from config import BASELINES_DIR, DEHAMER_DIR, ML_DIR, settings
 
 
 class ModelLoadError(RuntimeError):
@@ -123,16 +123,30 @@ def _resolve_device() -> str:
     return requested
 
 
-def _apply_checkpoint(model: torch.nn.Module) -> str:
-    """Load ``ML_MODEL_PATH`` (if configured and reachable) into the model.
+def _checkpoint_path(name: str) -> tuple[str | None, bool]:
+    """Return a model-specific checkpoint path and whether it was explicit."""
+    specific_path = os.getenv(f"ML_{name.upper()}_MODEL_PATH")
+    if specific_path:
+        return specific_path, True
+    if name == settings.default_model and settings.model_path:
+        return settings.model_path, True
+
+    default_path = os.path.join(ML_DIR, "checkpoints", f"{name}_best.pt")
+    if os.path.isfile(default_path):
+        return default_path, False
+    return None, False
+
+
+def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
+    """Load the checkpoint for ``name`` when configured or available.
 
     Returns the weights state: "trained" when a checkpoint was applied,
     or "untrained" when running on random initialisation.
     """
-    path = settings.model_path
+    path, explicit = _checkpoint_path(name)
     if not path:
         warnings.warn(
-            "No ML_MODEL_PATH configured - inference runs with randomly "
+            f"No checkpoint configured for '{name}' - inference runs with randomly "
             "initialised weights. Set ML_MODEL_PATH to a trained checkpoint "
             "for meaningful predictions.",
             UserWarning,
@@ -141,12 +155,10 @@ def _apply_checkpoint(model: torch.nn.Module) -> str:
         return "untrained"
 
     if not os.path.isfile(path):
-        warnings.warn(
-            f"ML_MODEL_PATH ({path}) does not exist - falling back to random "
-            "initialisation.",
-            UserWarning,
-            stacklevel=2,
-        )
+        if explicit:
+            raise ModelLoadError(
+                f"Configured checkpoint for '{name}' does not exist: {path}"
+            )
         return "untrained"
 
     try:
@@ -166,22 +178,13 @@ def _apply_checkpoint(model: torch.nn.Module) -> str:
     # DataParallel checkpoints prefix every key with "module.".
     state = {k[7:] if k.startswith("module.") else k: v for k, v in state.items()}
 
-    missing, unexpected = model.load_state_dict(state, strict=False)
-    if unexpected:
-        warnings.warn(
-            f"Ignored {len(unexpected)} unexpected checkpoint keys (e.g. "
-            f"{list(unexpected)[:3]}).",
-            UserWarning,
-            stacklevel=2,
-        )
-    if missing:
-        warnings.warn(
-            f"{len(missing)} model keys were not found in the checkpoint "
-            f"(randomly initialised, e.g. {list(missing)[:3]}).",
-            UserWarning,
-            stacklevel=2,
-        )
-    return "trained" if not missing else "partial"
+    try:
+        model.load_state_dict(state, strict=True)
+    except RuntimeError as exc:
+        raise ModelLoadError(
+            f"Checkpoint for '{name}' does not exactly match its architecture: {exc}"
+        ) from exc
+    return "trained"
 
 
 def get_model(name: str) -> dict[str, Any]:
@@ -218,7 +221,7 @@ def get_model(name: str) -> dict[str, Any]:
             model = model.half() if torch.cuda.is_available() else model
         model.eval()
 
-        weights_state = _apply_checkpoint(model)
+        weights_state = _apply_checkpoint(model, name)
         entry = {
             "model": model,
             "device": device,
@@ -249,7 +252,7 @@ def list_models() -> list[dict[str, Any]]:
                 else info["norm"],
                 "weightsState": (
                     "trained"
-                    if settings.model_path and os.path.isfile(settings.model_path)
+                    if os.path.isfile(_checkpoint_path(name)[0] or "")
                     else "untrained"
                 ),
                 "device": device,

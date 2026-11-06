@@ -8,6 +8,7 @@
     "ml": "cd ML\\inference_service && .venv\\Scripts\\python.exe app.py",
     "api": "npm run dev --prefix server",
     "web": "npm run dev --prefix client",
+    "train:ml": "ML\\inference_service\\.venv\\Scripts\\python.exe ML\\training\\train_aod.py",
     "setup": "npm install && npm install --prefix server && npm install --prefix client && python -m venv ML\\inference_service\\.venv && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install -r ML\\inference_service\\requirements.txt"
   },
   "devDependencies": {

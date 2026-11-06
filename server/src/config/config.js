@@ -29,7 +29,7 @@ const config = {
     // Maximum accepted size of an uploaded hazy image (MB).
     ML_MAX_FILE_SIZE_MB : Number(process.env.ML_MAX_FILE_SIZE_MB || 10),
     // Default model used when the request does not specify one.
-    ML_DEFAULT_MODEL : process.env.ML_DEFAULT_MODEL || "dehamer"
+    ML_DEFAULT_MODEL : process.env.ML_DEFAULT_MODEL || "aod"
 }
 
 export default config;

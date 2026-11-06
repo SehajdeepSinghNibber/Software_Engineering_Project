@@ -20,7 +20,7 @@ const { default: mlRoutes } = await import("../src/routes/ml.route.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.resolve(
-    __dirname, "..", "..", "ML", "inference_service", "tests_data", "hazy_test.jpg"
+    __dirname, "..", "..", "client", "public", "mountain-hazy.jpg"
 );
 
 

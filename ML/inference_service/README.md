@@ -20,23 +20,20 @@ original upload dimensions so the output always matches the input resolution.
 
 ## Quick start
 
-```bash
-cd ML/inference_service
-python -m venv .venv
-# CPU-only torch keeps the download small:
-.venv/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-.venv/Scripts/python -m pip install -r requirements.txt
-
-.venv/Scripts/python app.py            # serves on 127.0.0.1:8100
-```
+From the repository root on Windows, run `npm run setup` once and then
+`npm run dev`. The setup creates the shared ML virtual environment, installs
+CPU PyTorch and the inference dependencies; `npm run dev` starts the ML
+service, API and web client together. The service loads its optional settings
+from this directory's `.env` file.
 
 Configuration is read from environment variables (see `.env.example`).
 Important ones:
 
 | Variable | Default | Purpose |
 | -------- | ------- | ------- |
-| `ML_MODEL_TYPE` | `dehamer` | Default model for `/predict` |
-| `ML_MODEL_PATH` | *(empty)* | Path to a trained checkpoint. Without it the model runs with random weights (integration testing only) and `X-Weights-State: untrained` is returned. |
+| `ML_MODEL_TYPE` | `aod` | Default model for `/predict` |
+| `ML_MODEL_PATH` | *(empty)* | Explicit checkpoint path for the default model. Otherwise the service looks for `ML/checkpoints/<model>_best.pt`. |
+| `ML_AOD_MODEL_PATH` | *(empty)* | Optional AOD-specific checkpoint path. Equivalent model-specific overrides exist for `dehamer` and `light_dehaze`. |
 | `ML_INPUT_SIZE` | `224` | Square input size (must be multiple of 8 for `dehamer`) |
 | `ML_DEVICE` | `auto` | `cpu` / `cuda` / `auto` |
 
@@ -54,14 +51,14 @@ Metadata for every registered architecture (no model is loaded).
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `image` | yes | Hazy image (JPEG / PNG / WebP / BMP / TIFF) |
-| `model` | no | `dehamer` (default) \| `aod` \| `light_dehaze` |
+| `model` | no | `aod` (default) \| `dehamer` \| `light_dehaze` |
 | `size` | no | Square input size, 64–4096 |
 | `return_original_size` | no | `true` (default) resizes output back to upload resolution |
 
 Returns the dehazed image as **PNG bytes**, with metadata headers:
 
 ```
-X-Model: dehamer
+X-Model: aod
 X-Input-Size: 224
 X-Output-Width: 640
 X-Output-Height: 480
@@ -74,7 +71,7 @@ Example:
 ```bash
 curl -X POST http://127.0.0.1:8100/predict \
   -F "image=@hazy.jpg" \
-  -F "model=dehamer" \
+  -F "model=aod" \
   -o dehazed.png
 ```
 
@@ -90,8 +87,9 @@ Errors are returned as JSON: `{"detail": "<message>"}`.
 
 ## Notes for production
 
-1. Set `ML_MODEL_PATH` to a trained checkpoint — running without one produces
-   non-meaningful images and is only useful for wiring/CI tests.
+1. Train AOD-Net with the paired-data command in the repository README. Until
+   a checkpoint exists, the service reports `untrained`; configure an explicit
+   missing checkpoint path or invalid checkpoint and inference fails clearly.
 2. Keep `ML_MODEL_CACHE=true` (default) so the heavy model is loaded once.
 3. Prefer a GPU host (`ML_DEVICE=cuda`) for interactive latency; the Dehamer
    architecture has ~27M parameters.

@@ -10,11 +10,14 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
+
 
 # Absolute path of the "ML" directory (parent of this file's folder).
 ML_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINES_DIR = os.path.join(ML_DIR, "baselines")
 DEHAMER_DIR = os.path.join(BASELINES_DIR, "DeHamer")
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -31,7 +34,7 @@ class Settings:
     host: str = os.getenv("ML_HOST", "127.0.0.1")
     port: int = int(os.getenv("ML_PORT", "8100"))
     #: Default model used by POST /predict when no "model" field is given.
-    default_model: str = os.getenv("ML_MODEL_TYPE", "dehamer").strip().lower()
+    default_model: str = os.getenv("ML_MODEL_TYPE", "aod").strip().lower()
     #: Optional path to a trained checkpoint (weights *.pt / *.pth file).
     model_path: str | None = os.getenv("ML_MODEL_PATH") or None
     #: Square input size (must be divisible per-model, e.g. 8 for dehamer).

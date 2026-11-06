@@ -21,10 +21,9 @@ const TEST_IMAGE = path.resolve(
     __dirname,
     "..",
     "..",
-    "ML",
-    "inference_service",
-    "tests_data",
-    "hazy_test.jpg"
+    "client",
+    "public",
+    "mountain-hazy.jpg"
 );
 
 let passed = 0;
@@ -98,7 +97,7 @@ const SUCCESS_TESTS = [
     { name: "dehamer", fields: { model: "dehamer" } },
     { name: "aod", fields: { model: "aod" } },
     { name: "light_dehaze", fields: { model: "light_dehaze" } },
-    { name: "dehamer default model", fields: {} },
+    { name: "aod default model", fields: {} },
 ];
 
 

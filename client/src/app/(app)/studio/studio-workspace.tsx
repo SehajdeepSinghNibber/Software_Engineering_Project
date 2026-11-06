@@ -29,7 +29,7 @@ export default function StudioWorkspace() {
 
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [modelId, setModelId] = useState("dehamer");
+  const [modelId, setModelId] = useState("aod");
   const [sizeOption, setSizeOption] = useState<string>("auto");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);

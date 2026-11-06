@@ -15,6 +15,7 @@ venv/
 *.pth
 *.ckpt
 *.onnx
+ML/data/
 
 # Local runtime logs
 *.log
