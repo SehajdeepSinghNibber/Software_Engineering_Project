@@ -29,6 +29,7 @@ await app.register(cors, {
     cb(null, false);
   },
   credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 });
 await app.register(cookie);
 await app.register(multipart, {
