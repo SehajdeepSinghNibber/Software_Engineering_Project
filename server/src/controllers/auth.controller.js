@@ -5,28 +5,29 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs"
 
 export const signup = async (request, reply) => {
-  
-    const {fullName,email,password} = request.body;
+    const { fullName, email, password } = request.body ?? {};
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    const normalizedName = typeof fullName === "string" ? fullName.trim() : "";
 
     try {
 
-        if(!fullName || !email || !password){
+        if(!normalizedName || !normalizedEmail || typeof password !== "string"){
             return reply.code(400).send({
-                message:"All fields are required!!"
+                message:"Full name, email, and password are required."
             })
         }
 
-        if(password.length<6){
+        if(password.length < 6){
             return reply.code(400).send({
-                message: "Password must be atleast 6 characters long"
+                message: "Password must be at least 6 characters long."
             })
         }
 
-        const user = await User.findOne({email});
+        const user = await User.findOne({ email: normalizedEmail });
 
         if(user){
             return reply.code(400).send({
-                message: "email already exists"
+                message: "An account with this email already exists."
             })
         }
 
@@ -34,8 +35,9 @@ export const signup = async (request, reply) => {
         const hashedPassword = await bcrypt.hash(password,salt);
 
         const newUser = new User({
-            email,
-            fullName,
+            userName: normalizedEmail,
+            email: normalizedEmail,
+            fullName: normalizedName,
             password: hashedPassword
         })
 
@@ -59,7 +61,10 @@ export const signup = async (request, reply) => {
 
 
   } catch (error) {
-    console.error(error.message);
+    if (error?.code === 11000) {
+        return reply.code(409).send({ message: "An account with this email already exists." });
+    }
+    request.log.error({ error: error.message }, "signup failed");
 
     return reply.code(500).send({
         message: "Internal server error"
@@ -68,10 +73,13 @@ export const signup = async (request, reply) => {
 };
 
 export const login = async (request, reply) => {
-  const {email,password} = request.body;
+  const { email, password } = request.body ?? {};
 
   try {
-    const user = await User.findOne({email});
+    if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
+      return reply.code(400).send({ message: "Email and password are required." });
+    }
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
 
     if(!user){
         return reply.code(400).send({
@@ -97,10 +105,8 @@ export const login = async (request, reply) => {
             })
 
   } catch (error) {
-    console.log(error.message);
-    reply.code(500).send({
-        message: "Internal Server Error"
-    })
+    request.log.error({ error: error.message }, "login failed");
+    return reply.code(503).send({ message: "Sign in is temporarily unavailable. Please try again." });
   }
 };
 
