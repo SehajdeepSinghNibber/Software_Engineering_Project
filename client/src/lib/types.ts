@@ -18,8 +18,12 @@ export type ModelInfo = {
   divisible: number;
   /** Input normalisation applied by the inference service. */
   norm: "01" | "11" | "auto";
-  weightsState: "trained" | "partial" | "untrained";
+  weightsState: "trained" | "partial" | "untrained" | "missing";
   device: "cpu" | "cuda";
+  architecture?: string;
+  available?: boolean;
+  openSource?: boolean;
+  task?: string;
 };
 
 /** GET /api/v1/ml/models -> data. */

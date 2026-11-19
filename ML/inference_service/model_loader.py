@@ -20,7 +20,14 @@ from typing import Any, Callable, Optional
 
 import torch
 
-from config import BASELINES_DIR, DEHAMER_DIR, ML_DIR, settings
+from config import (
+    BASELINES_DIR,
+    DEHAMER_DIR,
+    DEHAZEFORMER_DIR,
+    DRNET_DIR,
+    ML_DIR,
+    settings,
+)
 
 
 class ModelLoadError(RuntimeError):
@@ -67,43 +74,56 @@ def _build_light_dehaze() -> torch.nn.Module:
     return module.LightDehaze_Net()
 
 
+def _build_dehazeformer() -> torch.nn.Module:
+    """Build the supplied DehazeFormer-B architecture."""
+    if DEHAZEFORMER_DIR not in sys.path:
+        sys.path.insert(0, DEHAZEFORMER_DIR)
+    try:
+        module = importlib.import_module("dehazeformer")
+    except Exception as exc:
+        raise ModelLoadError(
+            f"DehazeFormer architecture could not be imported: {exc}"
+        ) from exc
+    return module.dehazeformer_b()
+
+
+def _build_drnet() -> torch.nn.Module:
+    """Build the authors' DRNet 3-task model used by their dehaze pipeline."""
+    if DRNET_DIR not in sys.path:
+        sys.path.insert(0, DRNET_DIR)
+    try:
+        module = importlib.import_module("net.DRNet_arch")
+    except Exception as exc:
+        raise ModelLoadError(f"DRNet architecture could not be imported: {exc}") from exc
+    return module.DRNet(
+        input_size=128,
+        in_channels=3,
+        hidden_size=48,
+        num_blocks=[4, 6, 6, 8],
+        heads=[1, 2, 4, 8],
+        mlp_ratio=2.0,
+        num_experts=4,
+        window_size=8,
+        expert_dim=3,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
 MODEL_REGISTRY: dict[str, dict[str, Any]] = {
-    "dehamer": {
-        "build": _build_dehamer,
+    "drnet": {
+        "build": _build_drnet,
         "description": (
-            "Dehamer: Swin-Transformer U-Net for single image dehazing "
-            "(Guo et al., 2022)."
+            "DRNet 3-task dehazing model: Prior-Guided Dynamic Reparameterization "
+            "with the authors' pretrained dehaze checkpoint."
         ),
-        "default_size": 224,
-        # Dehamer's encoder halves the resolution several times; keeping the
-        # input divisible by 8 guarantees integer feature-map sizes.
-        "divisible": 8,
-        # DarkChannel in the modified Swin backbone expects [-1, 1] input.
-        "norm": "11",
-    },
-    "aod": {
-        "build": _build_aod,
-        "description": (
-            "AOD-Net: All-in-One Dehazing Network (Li et al., 2017), a light "
-            "CNN that directly estimates the clean image."
-        ),
-        "default_size": 224,
-        "divisible": 1,
+        "architecture": "Prior-Guided Dynamic Reparameterization Network",
+        "default_size": 256,
+        "divisible": 64,
         "norm": "01",
-    },
-    "light_dehaze": {
-        "build": _build_light_dehaze,
-        "description": (
-            "Light-DehazeNet (Hayat, 2021): lightweight multi-scale dehazing "
-            "CNN."
-        ),
-        "default_size": 224,
-        "divisible": 1,
-        "norm": "01",
+        "prompt": [0.0, 1.0, 0.0],
     },
 }
 
@@ -131,7 +151,11 @@ def _checkpoint_path(name: str) -> tuple[str | None, bool]:
     if name == settings.default_model and settings.model_path:
         return settings.model_path, True
 
-    default_path = os.path.join(ML_DIR, "checkpoints", f"{name}_best.pt")
+    checkpoint_names = {"drnet": "DRNet_3tasks"}
+    stem = checkpoint_names.get(name, f"{name}_best")
+    default_path = os.path.join(ML_DIR, "checkpoints", f"{stem}.pt")
+    if not os.path.isfile(default_path):
+        default_path = os.path.join(ML_DIR, "checkpoints", f"{stem}.pth")
     if os.path.isfile(default_path):
         return default_path, False
     return None, False
@@ -145,14 +169,11 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
     """
     path, explicit = _checkpoint_path(name)
     if not path:
-        warnings.warn(
-            f"No checkpoint configured for '{name}' - inference runs with randomly "
-            "initialised weights. Set ML_MODEL_PATH to a trained checkpoint "
-            "for meaningful predictions.",
-            UserWarning,
-            stacklevel=2,
+        raise ModelLoadError(
+            f"Pretrained weights for '{name}' are missing. Download the official "
+            "DRNet 3-task checkpoint to ML/checkpoints/DRNet_3tasks.pth or set "
+            "ML_DRNET_MODEL_PATH. Random weights are never used for inference."
         )
-        return "untrained"
 
     if not os.path.isfile(path):
         if explicit:
@@ -166,24 +187,51 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
     except Exception as exc:
         raise ModelLoadError(f"Could not read checkpoint {path}: {exc}") from exc
 
-    # Unwrap containers such as {"state_dict": ...} saved by trainers.
-    if isinstance(state, dict) and "state_dict" in state:
-        state = state["state_dict"]
+    # Common wrappers used by research code and training scripts.
+    if isinstance(state, dict):
+        for key in ("state_dict", "model", "net", "network"):
+            candidate = state.get(key)
+            if isinstance(candidate, dict):
+                state = candidate
+                break
     if not isinstance(state, dict):
         raise ModelLoadError(
             f"Checkpoint {path} does not contain a state_dict (got "
             f"{type(state).__name__})."
         )
 
-    # DataParallel checkpoints prefix every key with "module.".
-    state = {k[7:] if k.startswith("module.") else k: v for k, v in state.items()}
+    # DataParallel and distributed checkpoints add a prefix to every key.
+    state = {
+        (k[7:] if k.startswith("module.") else k[10:] if k.startswith("_orig_mod.") else k): v
+        for k, v in state.items()
+        if isinstance(k, str)
+    }
 
     try:
         model.load_state_dict(state, strict=True)
     except RuntimeError as exc:
-        raise ModelLoadError(
-            f"Checkpoint for '{name}' does not exactly match its architecture: {exc}"
-        ) from exc
+        result = model.load_state_dict(state, strict=False)
+        missing = len(result.missing_keys)
+        unexpected = len(result.unexpected_keys)
+        if missing == len(model.state_dict()):
+            raise ModelLoadError(
+                f"Checkpoint for '{name}' has no compatible keys "
+                f"({missing} missing keys, {unexpected} unexpected keys): {exc}"
+            ) from exc
+        if missing:
+            warnings.warn(
+                f"Loaded checkpoint for '{name}' partially "
+                f"({missing} missing keys, {unexpected} unexpected keys).",
+                UserWarning,
+                stacklevel=2,
+            )
+            return "partial"
+        if unexpected:
+            raise ModelLoadError(
+                f"Checkpoint for '{name}' has unexpected keys "
+                f"({unexpected} unexpected keys): {exc}"
+            ) from exc
+        return "trained"
     return "trained"
 
 
@@ -217,11 +265,15 @@ def get_model(name: str) -> dict[str, Any]:
             raise
 
         model = model.to(device)
-        if device == "cuda":
-            model = model.half() if torch.cuda.is_available() else model
         model.eval()
 
         weights_state = _apply_checkpoint(model, name)
+        if name == "drnet":
+            # Match the authors' official inference script: prompt class 1 is
+            # dehazing in [denoise, dehaze, derain].
+            prompt = torch.tensor(info["prompt"], dtype=torch.float32, device=device).unsqueeze(0)
+        else:
+            prompt = None
         entry = {
             "model": model,
             "device": device,
@@ -230,6 +282,8 @@ def get_model(name: str) -> dict[str, Any]:
             else info["norm"],
             "weights_state": weights_state,
             "default_size": info["default_size"],
+            "prompt": prompt,
+            "architecture": info.get("architecture", name),
         }
         if settings.model_cache:
             _cache[name] = entry
@@ -245,16 +299,16 @@ def list_models() -> list[dict[str, Any]]:
             {
                 "name": name,
                 "description": info["description"],
+                "architecture": info.get("architecture", name),
                 "defaultSize": info["default_size"],
                 "divisible": info["divisible"],
                 "norm": settings.input_norm
                 if settings.input_norm in ("01", "11")
                 else info["norm"],
-                "weightsState": (
-                    "trained"
-                    if os.path.isfile(_checkpoint_path(name)[0] or "")
-                    else "untrained"
-                ),
+                "weightsState": "trained" if os.path.isfile(_checkpoint_path(name)[0] or "") else "missing",
+                "available": os.path.isfile(_checkpoint_path(name)[0] or ""),
+                "openSource": True,
+                "task": "Image dehazing",
                 "device": device,
             }
         )

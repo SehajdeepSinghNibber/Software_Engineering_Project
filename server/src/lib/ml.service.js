@@ -105,7 +105,7 @@ export const listModels = async () => {
  * @param {Buffer} args.buffer   - raw image bytes
  * @param {string} [args.filename] - original file name
  * @param {string} [args.contentType] - original MIME type
- * @param {string} [args.model]  - model id (dehamer|aod|light_dehaze)
+ * @param {string} [args.model]  - model id
  * @param {number} [args.size]   - optional square input size
  * @returns {Promise<object>} result metadata plus the de-hazed PNG buffer
  */

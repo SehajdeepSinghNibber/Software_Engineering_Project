@@ -14,16 +14,16 @@ const EXAMPLES = [
     hazy: "/mountain-hazy.jpg",
     clear: "/mountain-clear.jpg",
     alt: "Mountain valley",
-    aspect: "aspect-[3/4]",
-    caption: "Dehamer restores scene radiance from a single hazy frame.",
+    aspect: "aspect-[1.58]",
+    caption: "Drag the divider to compare the original and restored example.",
   },
   {
     id: "summit",
     hazy: "/peak-hazy.jpg",
     clear: "/peak-clear.jpg",
     alt: "Mountain summit",
-    aspect: "aspect-square",
-    caption: "Fine texture and contrast return once the veil of haze lifts.",
+    aspect: "aspect-[1.58]",
+    caption: "A second example shows how the comparison works across images.",
   },
 ] as const;
 
@@ -60,6 +60,7 @@ export function CompareShowcase() {
           defaultPosition={50}
           itemOne={
             <ReactCompareSliderImage
+              src={example.hazy}
               alt={`${example.alt} — hazy input`}
               className="h-full w-full object-cover"
               draggable={false}
@@ -77,10 +78,10 @@ export function CompareShowcase() {
         />
 
         <span className="pointer-events-none absolute top-3 left-3 z-10 rounded-full border border-white/30 bg-ink/45 px-3 py-1 text-[0.6875rem] font-medium tracking-wide text-white backdrop-blur-sm">
-          Hazy
+          Original (Hazy)
         </span>
         <span className="pointer-events-none absolute top-3 right-3 z-10 rounded-full border border-white/30 bg-ink/45 px-3 py-1 text-[0.6875rem] font-medium tracking-wide text-white backdrop-blur-sm">
-          Clear
+          ClearLens (Restored)
         </span>
       </div>
 

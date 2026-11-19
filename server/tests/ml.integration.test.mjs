@@ -94,10 +94,8 @@ const buildMultipart = (fields, filePath, filename = "hazy_test.jpg") => {
 
 
 const SUCCESS_TESTS = [
-    { name: "dehamer", fields: { model: "dehamer" } },
-    { name: "aod", fields: { model: "aod" } },
-    { name: "light_dehaze", fields: { model: "light_dehaze" } },
-    { name: "aod default model", fields: {} },
+    { name: "drnet", fields: { model: "drnet" } },
+    { name: "default drnet model", fields: {} },
 ];
 
 
@@ -140,7 +138,7 @@ const runSuite = async () => {
     // missing image
     let boundary = `----TestBoundary${Date.now()}m`;
     let payload = Buffer.from(
-        `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\ndehamer\r\n` +
+        `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\ndrnet\r\n` +
         `--${boundary}--\r\n`,
         "utf8"
     );
@@ -169,7 +167,7 @@ const runSuite = async () => {
     // unsupported file type
     const txt = path.join(__dirname, "fake.txt");
     fs.writeFileSync(txt, "not an image");
-    ({ boundary, payload } = buildMultipart({ model: "aod" }, txt, "note.txt"));
+    ({ boundary, payload } = buildMultipart({ model: "drnet" }, txt, "note.txt"));
     res = await app.inject({
         method: "POST",
         url: "/api/v1/ml/dehaze",
@@ -179,8 +177,8 @@ const runSuite = async () => {
     check("unsupported file type -> 400", res.statusCode === 400);
     fs.unlinkSync(txt);
 
-    // invalid size for dehamer (multiple of 8) - forwarded from ML service as 400
-    ({ boundary, payload } = buildMultipart({ model: "dehamer", size: "100" }, TEST_IMAGE));
+    // invalid size for DRNet (multiple of 64) - forwarded from ML service as 400
+    ({ boundary, payload } = buildMultipart({ model: "drnet", size: "100" }, TEST_IMAGE));
     res = await app.inject({
         method: "POST",
         url: "/api/v1/ml/dehaze",
@@ -188,7 +186,7 @@ const runSuite = async () => {
         payload,
     });
     check(
-        "size not multiple of 8 -> 400 from ML service passthrough",
+        "size not multiple of 64 -> 400 from ML service passthrough",
         res.statusCode === 400,
         `got ${res.statusCode} ${res.body.slice(0, 120)}`
     );
@@ -203,7 +201,7 @@ const runSuite = async () => {
     check(
         "GET /models lists supported models",
         res.statusCode === 200 &&
-            ["dehamer", "aod", "light_dehaze"].every((n) => modelNames.includes(n))
+            modelNames.length === 1 && modelNames[0] === "drnet"
     );
 
     // --- the real app enforces JWT auth on /dehaze by default --------------

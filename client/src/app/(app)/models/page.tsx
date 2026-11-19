@@ -27,7 +27,7 @@ export default function ModelsPage() {
     <div className="animate-fade-up">
       <PageHeader
         title="Model catalog"
-        description="The architectures available in the inference service, loaded on demand and cached between requests."
+        description="The pretrained image restoration model available in this deployment."
       />
 
       {/* Service banner */}
@@ -59,7 +59,7 @@ export default function ModelsPage() {
       <section className="mt-6">
         {loading && (
           <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
+            {[0].map((i) => (
               <div key={i} className="skeleton h-24 w-full" />
             ))}
           </div>
@@ -70,9 +70,11 @@ export default function ModelsPage() {
             {models.map((model) => (
               <li key={model.name} className="px-5 py-5 sm:px-6">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <h3 className="font-mono text-sm font-semibold">{model.name}</h3>
+                  <h3 className="text-sm font-semibold">{model.name.toUpperCase()}</h3>
                   <WeightsBadge state={model.weightsState} />
+                  {model.openSource && <span className="rounded-full bg-base-200 px-2 py-0.5 text-[0.6875rem] text-base-content/60">Open source</span>}
                 </div>
+                <p className="mt-1 text-xs font-medium text-base-content/65">{model.architecture}</p>
                 <p className="mt-2 max-w-3xl text-sm leading-relaxed text-base-content/65">
                   {model.description}
                 </p>
@@ -93,7 +95,14 @@ export default function ModelsPage() {
                     <dt className="text-base-content/40">device</dt>
                     <dd>{model.device}</dd>
                   </div>
+                  <div className="flex gap-1.5">
+                    <dt className="text-base-content/40">task</dt>
+                    <dd>{model.task ?? "Image dehazing"}</dd>
+                  </div>
                 </dl>
+                {model.available === false && (
+                  <p className="mt-3 text-xs text-warning">Pretrained checkpoint unavailable. Place the authors’ DRNet_3tasks.pth in ML/checkpoints and restart the inference service.</p>
+                )}
               </li>
             ))}
           </ul>
@@ -107,8 +116,8 @@ export default function ModelsPage() {
       </section>
 
       <p className="mt-6 max-w-2xl text-xs leading-relaxed text-base-content/45">
-        Models are built from the research implementations in{" "}
-        <span className="font-mono">ML/baselines</span> and served behind the
+        DRNet is based on the authors’ implementation in{" "}
+        <span className="font-mono">ML/third_party/DRNet-AiO</span> and served behind the
         authenticated{" "}
         <span className="font-mono">POST /api/v1/ml/dehaze</span> endpoint. The
         weights badge reflects the checkpoint configured on the server via{" "}

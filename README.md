@@ -6,7 +6,7 @@ learning models.
 ```
 Browser (Next.js)  ──►  Fastify REST API (Node.js)  ──►  Inference Service (FastAPI + PyTorch)
                                    │                            │
-                                   ├── MongoDB (Mongoose)       └── ML/baselines (Dehamer, AOD-Net, Light-DehazeNet)
+                                   ├── MongoDB (Mongoose)       └── DRNet 3-task dehazing model
                                    └── JWT cookie auth
 ```
 
@@ -16,8 +16,8 @@ Browser (Next.js)  ──►  Fastify REST API (Node.js)  ──►  Inference S
 | ---- | -------- |
 | `client/` | Next.js front-end (Tailwind + daisyUI) |
 | `server/` | Fastify API: auth, users, ML routes |
-| `ML/baselines/` | Research PyTorch de-hazing architectures |
-| `ML/inference_service/` | FastAPI service that loads the models and exposes `/predict` |
+| `ML/third_party/DRNet-AiO/` | DRNet image restoration implementation |
+| `ML/inference_service/` | FastAPI service that loads DRNet and exposes `/predict` |
 | `ML/data_prep/`, `ML/evaluation/`, `ML/results/` | Dataset prep / evaluation scripts and results |
 
 ## How to run
@@ -33,7 +33,11 @@ Install the JavaScript packages and the CPU-only Python ML environment once:
 
 ```bash
 npm run setup
+npm run weights:drnet
 ```
+
+This downloads the authors' pretrained 3-task dehazing checkpoint to the
+git-ignored `ML/checkpoints/DRNet_3tasks.pth` path.
 
 The repository does not include a training dataset or pretrained weights.
 Prepare paired hazy and clear images in separate directories; each pair must
@@ -54,8 +58,9 @@ cite Ancuti et al., *O-HAZE: a dehazing benchmark with real hazy and haze-free
 outdoor images*, CVPR Workshops 2018 when using the data. This small benchmark
 is suitable for an experiment/fine-tuning run, not evidence of broad
 generalization to all haze or weather conditions.
-By default this saves `ML/checkpoints/aod_best.pt`, which the inference service
-discovers automatically. Useful options include `--epochs`, `--batch-size`,
+The optional project-local AOD training utility saves
+`ML/checkpoints/aod_best.pt`; it remains separate from the DRNet service
+configuration. Useful options include `--epochs`, `--batch-size`,
 `--patch-size`, `--device cpu|cuda|auto`, and `--output`. The trainer holds out
 a deterministic validation split, uses paired random crops/flips, optimizes
 L1 loss, and saves the best validation checkpoint. Do not use the small
@@ -104,7 +109,8 @@ Backend base URL: `http://127.0.0.1:8000/api/v1`
 | `GET` | `/ml/models` | public | List models exposed by the inference service |
 | `GET` | `/ml/health` | public | Inference service liveness |
 
-Supported models: `aod` (default), `dehamer`, `light_dehaze`. The backend
+Supported model: `drnet` (default), using the authors' pretrained dehazing
+task prompt and checkpoint. The backend
 validates every request (file presence, allowed image types, size limits
 `ML_MAX_FILE_SIZE_MB`, model id, per-model size constraints) and maps upstream
 failures to meaningful HTTP codes (400/413/503/504/502).
@@ -116,6 +122,7 @@ failures to meaningful HTTP codes (400/413/503/504/502).
 cd server
 node tests/ml.integration.test.mjs     # happy path + validation + auth
 node tests/ml-unreachable.test.mjs     # service-down behaviour (503)
+node tests/profile-upload.integration.test.mjs # Cloudinary upload + validation
 ```
 
 The Node tests drive the real Fastify route stack (multipart parsing,

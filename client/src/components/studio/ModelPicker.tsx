@@ -2,34 +2,20 @@
 
 import type { ModelInfo } from "@/lib/types";
 
-/** Shown only when the live catalog can't be reached — same ids as the server. */
+/** Fallback mirrors the single supported, pretrained model on the server. */
 const FALLBACK_MODELS: ModelInfo[] = [
   {
-    name: "dehamer",
-    description: "Dehamer: Swin-Transformer U-Net for single image dehazing (Guo et al., 2022).",
-    defaultSize: 224,
-    divisible: 8,
-    norm: "11",
-    weightsState: "untrained",
-    device: "cpu",
-  },
-  {
-    name: "aod",
-    description: "AOD-Net: All-in-One Dehazing Network (Li et al., 2017), a light CNN that directly estimates the clean image.",
-    defaultSize: 224,
-    divisible: 1,
+    name: "drnet",
+    description: "Prior-Guided Dynamic Reparameterization Network using the authors’ pretrained 3-task dehazing checkpoint.",
+    architecture: "Prior-Guided Dynamic Reparameterization Network",
+    defaultSize: 256,
+    divisible: 64,
     norm: "01",
-    weightsState: "untrained",
+    weightsState: "missing",
     device: "cpu",
-  },
-  {
-    name: "light_dehaze",
-    description: "Light-DehazeNet: a compact dehazing architecture trained on paired hazy/clear imagery.",
-    defaultSize: 224,
-    divisible: 1,
-    norm: "01",
-    weightsState: "untrained",
-    device: "cpu",
+    available: false,
+    openSource: true,
+    task: "Image dehazing",
   },
 ];
 
@@ -40,7 +26,7 @@ function WeightsBadge({ state }: { state: string }) {
       : state === "partial"
         ? "border-warning/50 bg-warning/10 text-base-content"
         : "border-base-300 bg-base-200 text-base-content/70";
-  const label = state === "trained" ? "Trained weights" : state === "partial" ? "Partial weights" : "Untrained weights";
+  const label = state === "trained" ? "Pretrained weights" : state === "partial" ? "Partial weights" : state === "missing" ? "Weights missing" : "Untrained weights";
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium ${cls}`}>
       {label}
@@ -72,8 +58,8 @@ export function ModelPicker({
 
       {loading && (
         <div className="space-y-2">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="skeleton h-[4.5rem] w-full" />
+          {[0].map((i) => (
+            <div key={i} className="skeleton h-18 w-full" />
           ))}
         </div>
       )}
@@ -87,7 +73,7 @@ export function ModelPicker({
                 key={model.name}
                 className={`flex cursor-pointer items-start gap-3 rounded-box border px-4 py-3 transition-colors ${
                   checked
-                    ? "border-base-content/60 bg-base-200"
+                    ? "border-success/40 bg-secondary/40"
                     : "border-base-300 hover:border-base-content/25 hover:bg-base-200/50"
                 } ${disabled ? "pointer-events-none opacity-60" : ""}`}
               >
@@ -102,15 +88,24 @@ export function ModelPicker({
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-mono text-sm font-medium">{model.name}</span>
+                    <span className="text-sm font-semibold">{model.name.toUpperCase()}</span>
                     <WeightsBadge state={model.weightsState} />
+                    {model.openSource && <span className="rounded-full bg-base-200 px-2 py-0.5 text-[0.6875rem] text-base-content/60">Open source</span>}
+                  </span>
+                  <span className="mt-1 block text-xs font-medium text-base-content/75">
+                    {model.architecture ?? "Image restoration network"}
                   </span>
                   <span className="mt-1 block text-xs leading-relaxed text-base-content/55">
                     {model.description}
                   </span>
                   <span className="mt-1.5 block font-mono text-[0.6875rem] text-base-content/45">
-                    default {model.defaultSize}px · {model.norm === "11" ? "[-1, 1]" : "[0, 1]"} norm · {model.device}
+                    dehazing · default {model.defaultSize}px · {model.device === "cuda" ? "CUDA" : "CPU"} fallback available
                   </span>
+                  {model.available === false && (
+                    <span className="mt-2 block text-xs font-medium text-warning">
+                      The pretrained checkpoint is missing on this server. Add DRNet_3tasks.pth to ML/checkpoints to enable inference.
+                    </span>
+                  )}
                 </span>
               </label>
             );
@@ -120,7 +115,7 @@ export function ModelPicker({
 
       {usingFallback && (
         <p className="mt-2 text-xs text-base-content/50">
-          Live model catalog is unreachable — showing built-in architectures.
+          Live model catalog is unreachable — showing the DRNet configuration.
         </p>
       )}
     </fieldset>

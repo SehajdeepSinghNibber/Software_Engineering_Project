@@ -7,16 +7,23 @@ const LINK_GROUPS = [
   {
     title: "Product",
     links: [
-      { href: "/", label: "Home" },
-      { href: "/research", label: "Research" },
-      { href: "/use-cases", label: "Use Cases" },
+      { href: "/#how-it-works", label: "How it works" },
+      { href: "/#models", label: "Model catalog" },
+      { href: "/studio", label: "Studio" },
     ],
   },
   {
     title: "Resources",
     links: [
+      { href: "/research", label: "Research" },
+      { href: "/use-cases", label: "Use cases" },
       { href: "/docs", label: "Docs" },
-      { href: "/about", label: "About" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { href: "/about", label: "About ClearLens" },
       { href: "/login", label: "Sign in" },
     ],
   },
@@ -27,7 +34,7 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-sand/80">
       <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div>
             <p className="text-ink">
               <Logo />
@@ -59,7 +66,7 @@ export function SiteFooter() {
           ))}
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink">Project</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink">Open source</p>
             <a
               href="https://github.com/SehajdeepSinghNibber/Software_Engineering_Project"
               target="_blank"

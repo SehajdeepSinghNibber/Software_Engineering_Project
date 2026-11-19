@@ -9,15 +9,16 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { Logo } from "@/components/ui/Logo";
 
 const NAV_LINKS = [
-  { href: "/", label: "Home" },
+  { href: "/#how-it-works", label: "Product" },
   { href: "/research", label: "Research" },
   { href: "/use-cases", label: "Use Cases" },
   { href: "/docs", label: "Docs" },
-  { href: "/about", label: "About" },
+  { href: "/about", label: "Company" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  if (href.startsWith("/#")) return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /**
@@ -43,7 +44,7 @@ export function SiteNav() {
         </Link>
 
         {/* Centered primary nav (desktop) */}
-        <nav className="hidden justify-self-center md:block" aria-label="Primary">
+        <nav className="hidden justify-self-center lg:block" aria-label="Primary">
           <ul className="flex items-center gap-7">
             {NAV_LINKS.map((link) => {
               const active = isActive(pathname, link.href);
@@ -67,7 +68,7 @@ export function SiteNav() {
         </nav>
 
         {/* Session actions (desktop) */}
-        <div className="hidden items-center gap-2 justify-self-end md:flex">
+        <div className="hidden items-center gap-2 justify-self-end lg:flex">
           {authed ? (
             <Link href="/dashboard" className="btn-pill btn-pill-primary px-5 py-2.5">
               Open workspace
@@ -82,7 +83,7 @@ export function SiteNav() {
                 Sign in
               </Link>
               <Link href="/signup" className="btn-pill btn-pill-primary group px-5 py-2.5">
-                Get started
+                Get Started
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </Link>
             </>
@@ -95,7 +96,7 @@ export function SiteNav() {
           onClick={() => setMenuOpen((open) => !open)}
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
-          className="inline-grid h-10 w-10 place-content-center justify-self-end rounded-full border border-sand bg-white/70 text-ink transition-colors duration-200 hover:bg-white md:hidden"
+          className="inline-grid h-10 w-10 place-content-center justify-self-end rounded-full border border-sand bg-white/70 text-ink transition-colors duration-200 hover:bg-white lg:hidden"
         >
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -103,7 +104,7 @@ export function SiteNav() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <nav className="border-t border-sand/80 bg-cream px-4 pt-2 pb-5 md:hidden" aria-label="Mobile">
+        <nav className="border-t border-sand/80 bg-cream px-4 pt-2 pb-5 lg:hidden" aria-label="Mobile">
           <ul>
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
@@ -143,7 +144,7 @@ export function SiteNav() {
                   onClick={closeMenu}
                   className="btn-pill btn-pill-primary flex-1 py-2.5"
                 >
-                  Get started
+                  Get Started
                 </Link>
               </>
             )}

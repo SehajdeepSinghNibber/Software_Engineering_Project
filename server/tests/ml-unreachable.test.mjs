@@ -39,7 +39,7 @@ const main = async () => {
     const boundary = `----Down${Date.now()}----`;
     const payload = Buffer.concat([
         Buffer.from(
-            `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\ndehamer\r\n` +
+            `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\ndrnet\r\n` +
             `--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="hazy_test.jpg"\r\n` +
             `Content-Type: image/jpeg\r\n\r\n`,
             "utf8"

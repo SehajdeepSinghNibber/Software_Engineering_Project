@@ -25,7 +25,9 @@ const ALLOWED_EXTENSIONS = new Set([
     "jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff",
 ]);
 
-const ALLOWED_MODELS = new Set(["dehamer", "aod", "light_dehaze"]);
+const ALLOWED_MODELS = new Set([
+    "drnet",
+]);
 
 
 /** Raised for client-side request validation problems (HTTP 400). */
@@ -91,7 +93,7 @@ const sendError = (reply, statusCode, message, extra = {}) => {
  * POST /api/v1/ml/dehaze
  * Body: multipart/form-data
  *   - image (file, required)  : hazy image (JPEG/PNG/WebP/BMP/TIFF)
- *   - model (string, optional): dehamer | aod | light_dehaze
+ *   - model (string, optional): drnet (the official pretrained dehazing model)
  *   - size  (int, optional)   : square input size, 64 - 4096
  */
 export const dehaze = async (request, reply) => {

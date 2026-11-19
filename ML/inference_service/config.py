@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 ML_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINES_DIR = os.path.join(ML_DIR, "baselines")
 DEHAMER_DIR = os.path.join(BASELINES_DIR, "DeHamer")
+DEHAZEFORMER_DIR = os.path.join(BASELINES_DIR, "DehazeFormer")
+DRNET_DIR = os.path.join(ML_DIR, "third_party", "DRNet-AiO")
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 
@@ -34,11 +36,11 @@ class Settings:
     host: str = os.getenv("ML_HOST", "127.0.0.1")
     port: int = int(os.getenv("ML_PORT", "8100"))
     #: Default model used by POST /predict when no "model" field is given.
-    default_model: str = os.getenv("ML_MODEL_TYPE", "aod").strip().lower()
+    default_model: str = os.getenv("ML_MODEL_TYPE", "drnet").strip().lower()
     #: Optional path to a trained checkpoint (weights *.pt / *.pth file).
     model_path: str | None = os.getenv("ML_MODEL_PATH") or None
     #: Square input size (must be divisible per-model, e.g. 8 for dehamer).
-    input_size: int = int(os.getenv("ML_INPUT_SIZE", "224"))
+    input_size: int = int(os.getenv("ML_INPUT_SIZE", "256"))
     #: Input normalization: "auto" (per-model default), "01" ([0, 1]) or "11" ([-1, 1]).
     input_norm: str = os.getenv("ML_INPUT_NORM", "auto").strip().lower()
     #: Torch device: "auto", "cpu" or "cuda".

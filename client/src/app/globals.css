@@ -4,42 +4,37 @@
   themes: false;
 }
 
-/*
- * "clearlens" — the ClearLens design system.
- * Cream linen base, dark-maroon accent, warm brown-gray body text.
- * Palette: base #FDF6EC · maroon #5C1A0E · ink #2A1810 · clay #6E5B4C · sand #EBDCC3.
- */
 @plugin "daisyui/theme" {
   name: "clearlens";
   default: true;
   color-scheme: light;
 
-  --color-base-100: #fdf6ec;
-  --color-base-200: #f7eddd;
-  --color-base-300: #ebdcc3;
-  --color-base-content: #4a3a2e;
+  --color-base-100: #fafaf7;
+  --color-base-200: #edf2ec;
+  --color-base-300: #e4e8e2;
+  --color-base-content: #17221d;
 
-  --color-primary: #5c1a0e;
-  --color-primary-content: #fdf6ec;
-  --color-secondary: #7a4a36;
-  --color-secondary-content: #fdf6ec;
-  --color-accent: #a05c3b;
-  --color-accent-content: #fdf6ec;
-  --color-neutral: #2a1810;
-  --color-neutral-content: #fdf6ec;
+  --color-primary: #104c38;
+  --color-primary-content: #ffffff;
+  --color-secondary: #edf2ec;
+  --color-secondary-content: #104c38;
+  --color-accent: #a9bbae;
+  --color-accent-content: #17221d;
+  --color-neutral: #17221d;
+  --color-neutral-content: #ffffff;
 
-  --color-info: #2f5d8a;
-  --color-info-content: #fdf6ec;
-  --color-success: #3e6b4f;
-  --color-success-content: #fdf6ec;
-  --color-warning: #b98a2f;
-  --color-warning-content: #2a1810;
-  --color-error: #a8321e;
-  --color-error-content: #fdf6ec;
+  --color-info: #496b72;
+  --color-info-content: #ffffff;
+  --color-success: #3e6b52;
+  --color-success-content: #ffffff;
+  --color-warning: #9a671f;
+  --color-warning-content: #ffffff;
+  --color-error: #a7433a;
+  --color-error-content: #ffffff;
 
   --radius-selector: 0.625rem;
-  --radius-field: 0.5rem;
-  --radius-box: 1rem;
+  --radius-field: 0.625rem;
+  --radius-box: 0.875rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -47,33 +42,32 @@
   --noise: 0;
 }
 
-/* Fonts loaded via next/font in layout.tsx, mapped into the utility scale. */
+/* Geist keeps product, marketing, and account surfaces on one clear voice. */
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
   --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
 }
 
-/* Brand tokens — usable as bg-maroon, text-ink, border-sand, shadow-card, … */
 @theme {
-  --color-ink: #2a1810;
-  --color-clay: #6e5b4c;
-  --color-maroon: #5c1a0e;
-  --color-maroon-deep: #45130a;
-  --color-cream: #fdf6ec;
-  --color-sand: #ebdcc3;
-  --color-parchment: #f7eddd;
+  --color-ink: #17221d;
+  --color-clay: #69736d;
+  --color-maroon: #104c38;
+  --color-maroon-deep: #0b3d2d;
+  --color-cream: #fafaf7;
+  --color-sand: #e4e8e2;
+  --color-parchment: #edf2ec;
 
-  --shadow-card: 0 1px 2px rgb(42 24 16 / 0.05), 0 10px 28px -14px rgb(42 24 16 / 0.16);
-  --shadow-lift: 0 2px 6px rgb(42 24 16 / 0.08), 0 24px 48px -20px rgb(42 24 16 / 0.3);
+  --shadow-card: 0 1px 2px rgb(23 34 29 / 0.04), 0 4px 14px -10px rgb(23 34 29 / 0.12);
+  --shadow-lift: 0 3px 12px -6px rgb(23 34 29 / 0.16);
 
-  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -91,57 +85,125 @@
   }
 
   ::selection {
-    background-color: var(--color-maroon);
-    color: var(--color-cream);
+    background-color: #104c38;
+    color: #ffffff;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-base-300) transparent;
+    scrollbar-color: #c9d4ca transparent;
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-maroon);
+    outline: 2px solid #104c38;
     outline-offset: 2px;
   }
 }
 
 @layer components {
-  /* Marketing button system — solid maroon pill with a gentle lift on hover. */
   .btn-pill {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all duration-200 select-none;
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-field text-sm font-semibold transition-all duration-150 select-none;
   }
   .btn-pill-primary {
-    @apply bg-maroon text-cream shadow-card hover:-translate-y-px hover:bg-maroon-deep hover:shadow-lift active:translate-y-0 active:shadow-card;
+    @apply bg-maroon text-white hover:-translate-y-px hover:bg-maroon-deep active:translate-y-0;
   }
   .btn-pill-inverse {
-    @apply bg-cream text-maroon shadow-card hover:-translate-y-px hover:bg-white hover:shadow-lift active:translate-y-0;
+    @apply bg-white text-maroon-deep hover:-translate-y-px hover:bg-base-200 active:translate-y-0;
   }
 
-  /* Quiet secondary action — plain text link with a trailing chevron. */
   .link-chevron {
-    @apply inline-flex items-center gap-1.5 text-sm font-semibold text-ink transition-colors duration-200 hover:text-maroon;
+    @apply inline-flex items-center gap-1.5 text-sm font-semibold text-ink transition-colors duration-150 hover:text-maroon;
   }
 
-  /* Eyebrow badge above headlines. */
   .badge-pill {
-    @apply inline-flex items-center gap-2 rounded-full border border-sand bg-white/70 px-3.5 py-1.5 text-xs font-medium tracking-wide text-clay;
+    @apply inline-flex items-center gap-2 rounded-full border border-sand bg-white px-3.5 py-1.5 text-xs font-medium tracking-wide text-clay;
   }
   .badge-pill-dot {
     @apply h-1.5 w-1.5 shrink-0 rounded-full bg-maroon;
   }
 
-  /* The standard marketing card — consistent across every page. */
   .card-luxe {
-    @apply rounded-2xl border border-sand bg-white/75 shadow-card;
+    @apply rounded-box border border-sand bg-white;
   }
 }
 
-/*
- * Draggable handle for the hero comparison slider (react-compare-slider).
- * Styled in plain CSS because the handle lives inside the library's DOM;
- * hover/active states scale the grip and warm its fill.
- */
+/* Shared shell for the authenticated workspace. */
+.app-sidebar {
+  background: #104c38;
+  color: rgb(255 255 255 / 0.88);
+}
+
+.app-sidebar-link {
+  color: rgb(255 255 255 / 0.72);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.app-sidebar-link:hover {
+  color: #ffffff;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.app-sidebar-link[aria-current="page"] {
+  color: #ffffff;
+  background: rgb(255 255 255 / 0.13);
+}
+
+.app-sidebar-summary {
+  color: rgb(255 255 255 / 0.48);
+}
+
+.app-mobile-drawer[data-open="true"] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.app-mobile-drawer[data-open="false"] {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-mobile-drawer-panel {
+  transform: translateX(-100%);
+  transition: transform 200ms cubic-bezier(0.2, 0.75, 0.3, 1);
+}
+
+.app-mobile-drawer[data-open="true"] .app-mobile-drawer-panel {
+  transform: translateX(0);
+}
+
+.landing-hero-backdrop {
+  top: 2.25rem;
+  right: max(-22rem, calc((100vw - 1440px) / 2 - 24rem));
+  width: min(58rem, 58vw);
+  height: 31rem;
+  border-radius: 50%;
+  background: #104c38;
+  transform: rotate(-17deg);
+}
+
+@media (max-width: 1023px) {
+  .landing-hero-backdrop {
+    top: auto;
+    right: -28vw;
+    bottom: 2.5rem;
+    width: 92vw;
+    height: 23rem;
+    transform: rotate(-11deg);
+  }
+}
+
+@media (max-width: 639px) {
+  .landing-hero-backdrop {
+    right: -52vw;
+    bottom: 2rem;
+    width: 145vw;
+    height: 14rem;
+  }
+}
+
+/* The image comparison handle is rendered inside react-compare-slider. */
 .rcs-handle {
   position: relative;
   display: inline-flex;
@@ -151,16 +213,16 @@
   cursor: ew-resize;
   pointer-events: none;
 }
+
 .rcs-handle-line {
   flex-grow: 1;
   width: 2px;
   border-radius: 9999px;
   background-color: rgb(255 255 255 / 0.95);
-  box-shadow:
-    0 0 0 1px rgb(0 0 0 / 0.16),
-    0 0 6px rgb(0 0 0 / 0.35);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.16), 0 0 6px rgb(0 0 0 / 0.35);
   pointer-events: auto;
 }
+
 .rcs-handle-btn {
   flex-shrink: 0;
   display: grid;
@@ -168,24 +230,22 @@
   width: 2.75rem;
   height: 2.75rem;
   margin: 0.625rem 0;
-  border-radius: 9999px;
   border: 2px solid #fff;
-  background-color: rgb(42 24 16 / 0.45);
+  border-radius: 9999px;
+  background-color: rgb(16 76 56 / 0.68);
   color: #fff;
-  box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.25);
   backdrop-filter: blur(4px);
   pointer-events: auto;
-  transition:
-    transform 0.2s ease,
-    background-color 0.2s ease;
-}
-.rcs-handle:hover .rcs-handle-btn,
-.rcs-handle:active .rcs-handle-btn {
-  transform: scale(1.1);
-  background-color: rgb(92 26 14 / 0.78);
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
-/* Checkerboard backdrop for image canvases (reveals transparency cleanly). */
+.rcs-handle:hover .rcs-handle-btn,
+.rcs-handle:active .rcs-handle-btn {
+  transform: scale(1.06);
+  background-color: rgb(16 76 56 / 0.9);
+}
+
 @utility bg-checker {
   background-image: conic-gradient(
     var(--color-base-200) 0 25%,
@@ -196,11 +256,21 @@
   background-size: 16px 16px;
 }
 
-/* Faint dotted texture — retained for in-app accents. */
 @utility bg-dotgrid {
   background-image: radial-gradient(
     color-mix(in oklab, var(--color-base-content) 9%, transparent) 1px,
     transparent 1px
   );
   background-size: 22px 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

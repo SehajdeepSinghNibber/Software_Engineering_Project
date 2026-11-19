@@ -1,4 +1,4 @@
-import { Feather, FlaskConical, Focus, Gauge, Layers, Network, Sigma } from "lucide-react";
+import { FlaskConical, Gauge, Layers, Network, Sigma } from "lucide-react";
 
 import { CtaBand } from "@/components/marketing/CtaBand";
 import { PageHero } from "@/components/marketing/PageHero";
@@ -7,34 +7,14 @@ import { SiteNav } from "@/components/marketing/SiteNav";
 
 const MODELS = [
   {
-    name: "dehamer",
-    tag: "Transformer U-Net",
+    name: "DRNet",
+    tag: "Prior-guided restoration network",
     icon: Network,
     blurb:
-      "A U-Net built on Swin-Transformer blocks, fusing local detail with long-range context to recover radiance from heavy, non-uniform haze.",
-    input: "−1 … 1",
-    size: "224 px",
-    source: "ML/baselines/dehamer",
-  },
-  {
-    name: "aod",
-    tag: "All-in-one CNN",
-    icon: Focus,
-    blurb:
-      "The classic AOD-Net — a light CNN that jointly estimates the transmission map and atmospheric light through a single K(x) correction, making end-to-end de-hazing practical.",
-    input: "0 … 1",
-    size: "224 px",
-    source: "ML/baselines/aod",
-  },
-  {
-    name: "light_dehaze",
-    tag: "Compact CNN",
-    icon: Feather,
-    blurb:
-      "A deliberately small network with separable convolutions — fast enough for edge deployment while keeping competitive restoration quality.",
-    input: "0 … 1",
-    size: "224 px",
-    source: "ML/baselines/light_dehaze",
+      "A multi-task image restoration model using task-specific prompts and dynamic reparameterization. ClearLens selects its trained dehazing task and applies the official three-task checkpoint.",
+    input: "0 … 1 RGB",
+    size: "256 px default",
+    source: "AVC2-UESTC/DRNet-AiO",
   },
 ] as const;
 
@@ -42,12 +22,12 @@ const STAGES = [
   {
     step: "01",
     title: "Letterbox resize",
-    body: "The frame is scaled to the model working resolution, preserving aspect ratio with padding.",
+    body: "The RGB frame is resized with its aspect ratio preserved and padded for DRNet’s windowed stages.",
   },
   {
     step: "02",
     title: "Normalise",
-    body: "Pixels are scaled to the expected range — −1…1 for Dehamer, 0…1 for the others.",
+    body: "Pixels are converted to RGB and scaled into the model’s expected [0, 1] range.",
   },
   {
     step: "03",
@@ -69,8 +49,8 @@ export default function ResearchPage() {
       <main className="flex-1">
         <PageHero
           eyebrow="Research"
-          title="Peer-reviewed de-hazing, production-wrapped."
-          lede="ClearLens is built on published image-restoration research — from the classic all-in-one AOD-Net to the Swin-Transformer based Dehamer — retrained and served through one inference pipeline."
+          title="Research-grade restoration, production-wrapped."
+          lede="ClearLens serves one real, pretrained open-source model for image dehazing: DRNet’s task-conditioned three-task architecture, wrapped in a stable upload, inference, and comparison workflow."
         />
 
         {/* ——— Architectures ——— */}
@@ -78,18 +58,17 @@ export default function ResearchPage() {
           <div className="max-w-2xl">
             <p className="badge-pill">
               <span className="badge-pill-dot" aria-hidden="true" />
-              Architectures
+              Active model
             </p>
             <h2 className="mt-4 font-display text-3xl leading-tight tracking-[0.01em] text-ink sm:text-4xl">
-              Three networks, one interface
+              One model, one clear workflow
             </h2>
             <p className="mt-3 text-base leading-relaxed text-clay">
-              Each architecture ships with its own preprocessing rules, weights and checkpoints —
-              selected per request through the same de-haze endpoint.
+              DRNet is loaded lazily from its upstream implementation and its checkpoint is required before inference. The app never returns output from random weights.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+          <div className="mt-10 grid max-w-3xl gap-5">
             {MODELS.map(({ name, tag, icon: Icon, blurb, input, size, source }) => (
               <article key={name} className="card-luxe flex flex-col p-7">
                 <div className="flex items-center justify-between">
@@ -161,14 +140,12 @@ export default function ResearchPage() {
                 Measured, not marketed
               </h2>
               <p className="mt-3 text-base leading-relaxed text-clay">
-                Restoration quality is scored with PSNR and SSIM across held-out haze datasets via
-                the evaluation harness in <span className="font-mono text-sm text-ink">ML/evaluation</span> —
-                results are tracked per architecture as training progresses.
+                This page reports the architecture and runtime settings used by the inference API.
+                It does not present an image-quality score without a paired clear reference.
               </p>
               <p className="mt-3 text-base leading-relaxed text-clay">
-                The API also reports <span className="font-mono text-sm text-ink">X-Weights-State</span>{" "}
-                on every response, so you always know whether a model ran on trained weights or the
-                bundled defaults.
+                The inference API reports model identity and elapsed time. It refuses to run if the
+                official pretrained checkpoint is unavailable.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -190,14 +167,14 @@ export default function ResearchPage() {
                 <FlaskConical className="h-5 w-5 text-maroon" strokeWidth={1.75} />
                 <p className="mt-3 text-sm font-semibold text-ink">Held-out datasets</p>
                 <p className="mt-1 text-sm leading-relaxed text-clay">
-                  Benchmarks run on haze sets the models never saw during training.
+                  The upstream paper evaluates the model on restoration benchmarks.
                 </p>
               </div>
               <div className="card-luxe p-6">
                 <Layers className="h-5 w-5 text-maroon" strokeWidth={1.75} />
                 <p className="mt-3 text-sm font-semibold text-ink">CPU &amp; CUDA</p>
                 <p className="mt-1 text-sm leading-relaxed text-clay">
-                  Checkpoints are evaluated on both device targets the service supports.
+                  CUDA is used when available; CPU is supported as a fallback.
                 </p>
               </div>
             </div>

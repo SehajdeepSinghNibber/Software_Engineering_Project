@@ -54,7 +54,7 @@ export default function LoginForm() {
 
   return (
     <section className="animate-fade-up card-luxe p-6 sm:p-8">
-      <h1 className="font-display text-2xl font-semibold tracking-[0.01em] text-ink">
+      <h1 className="font-sans text-2xl font-semibold tracking-[-0.03em] text-ink">
         Sign in to ClearLens
       </h1>
       <p className="mt-1.5 text-sm text-base-content/60">

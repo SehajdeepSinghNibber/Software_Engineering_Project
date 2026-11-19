@@ -14,7 +14,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-/** Display serif for headlines — confident, editorial, premium. */
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],

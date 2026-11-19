@@ -17,7 +17,6 @@ import type { DehazeResult } from "@/lib/types";
 
 const SIZE_OPTIONS = [
   { value: "auto", label: "Auto (model default)" },
-  { value: "224", label: "224 px" },
   { value: "256", label: "256 px" },
   { value: "384", label: "384 px" },
   { value: "512", label: "512 px" },
@@ -29,7 +28,7 @@ export default function StudioWorkspace() {
 
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [modelId, setModelId] = useState("aod");
+  const [modelId, setModelId] = useState("drnet");
   const [sizeOption, setSizeOption] = useState<string>("auto");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -76,7 +75,7 @@ export default function StudioWorkspace() {
     setSizeOption(event.target.value);
 
   const run = async () => {
-    if (!file || busy) return;
+    if (!file || busy || selectedModel?.available === false) return;
     setBusy(true);
     setElapsed(0);
     setError(null);
@@ -107,7 +106,7 @@ export default function StudioWorkspace() {
     <div className="animate-fade-up">
       <PageHeader
         title="De-hazing Studio"
-        description="Upload a hazy photograph, choose an architecture, and compare the restored result against the original."
+        description="Restore a hazy photograph with the pretrained DRNet model, then compare and download the result."
       />
 
       <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
@@ -188,14 +187,14 @@ export default function StudioWorkspace() {
           <button
             type="button"
             onClick={run}
-            disabled={!file || busy}
+            disabled={!file || busy || selectedModel?.available === false}
             className="btn btn-primary mt-6 w-full"
           >
             {busy && <span className="loading loading-spinner loading-xs" />}
             {busy ? "De-hazing…" : "De-haze image"}
           </button>
           <p className="mt-2.5 text-center text-xs text-base-content/45">
-            Inference runs server-side · typical runs finish in seconds on CPU
+            DRNet runs server-side · CUDA is used when available, with CPU fallback
           </p>
         </section>
 
@@ -250,14 +249,9 @@ export default function StudioWorkspace() {
                 />
               </div>
 
-              {result.weightsState !== "trained" && (
-                <Notice variant="warning" title="Untrained weights">
-                  The server is running this architecture without a trained
-                  checkpoint
-                  {result.weightsState === "partial" ? " (the checkpoint only covered some layers)" : ""}.
-                  Results demonstrate the pipeline, not production quality.
-                </Notice>
-              )}
+              <p className="text-xs text-base-content/45">
+                DRNet · Prior-Guided Dynamic Reparameterization · pretrained open-source model
+              </p>
 
               <div className="flex flex-wrap items-center gap-3">
                 <a

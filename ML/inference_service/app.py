@@ -31,11 +31,11 @@ def _safe_default_model() -> str:
         return settings.default_model
     warnings.warn(
         f"ML_MODEL_TYPE='{settings.default_model}' is not registered; falling "
-        f"back to 'aod'.",
+        f"back to 'drnet'.",
         UserWarning,
         stacklevel=2,
     )
-    return "aod"
+    return "drnet"
 
 
 DEFAULT_MODEL = _safe_default_model()
@@ -43,9 +43,8 @@ DEFAULT_MODEL = _safe_default_model()
 app = FastAPI(
     title="Image Dehazing Inference Service",
     description=(
-        "REST API around the research dehazing architectures stored in "
-        "``ML/baselines`` (Dehamer, AOD-Net, Light-DehazeNet). Accepts a hazy "
-        "image and returns a dehazed PNG."
+        "REST API around the pretrained DRNet 3-task dehazing architecture. "
+        "Accepts a hazy image and returns a dehazed PNG."
     ),
     version="1.0.0",
 )
@@ -80,7 +79,7 @@ def models():
 @app.post("/predict")
 async def predict(
     image: UploadFile = File(..., description="Hazy input image (JPEG/PNG/...)."),
-    model: str = Form(DEFAULT_MODEL, description="Model id, e.g. dehamer."),
+    model: str = Form(DEFAULT_MODEL, description="Model id: drnet."),
     size: int = Form(
         None, ge=64, le=4096, description="Optional square input size."
     ),

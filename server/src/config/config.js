@@ -6,7 +6,9 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 dotenv.config({ path: path.join(projectRoot, ".env") });
 
 const config = {
-    PORT : process.env.PORT,
+    // Keep the backend port distinct from a generic root PORT (often used by
+    // Next.js or another local service). The client defaults to port 8000.
+    PORT : Number(process.env.API_PORT || 8000),
     MONGO_URI : process.env.MONGO_URI,
     JWT_SECRET : process.env.JWT_SECRET ,
     NODE_ENV : process.env.NODE_ENV,

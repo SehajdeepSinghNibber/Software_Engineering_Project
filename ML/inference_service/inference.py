@@ -41,7 +41,7 @@ def predict(
     info = model_loader.MODEL_REGISTRY[name]
 
     # ---- size validation --------------------------------------------------
-    input_size = size or settings.input_size
+    input_size = size or settings.input_size or info["default_size"]
     if not isinstance(input_size, int) or isinstance(input_size, bool):
         raise BadRequestError("'size' must be an integer.")
     if input_size < 64 or input_size > 4096:
@@ -77,7 +77,7 @@ def predict(
     try:
         with torch.no_grad():
             started = time.perf_counter()
-            output = model(tensor)
+            output = model(tensor, entry["prompt"]) if entry.get("prompt") is not None else model(tensor)
             inference_ms = (time.perf_counter() - started) * 1000.0
     except Exception as exc:
         raise InferenceFailedError(

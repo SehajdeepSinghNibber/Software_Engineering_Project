@@ -1,40 +1,36 @@
 # Dehazing Inference Service
 
-HTTP API around the PyTorch image-dehazing architectures stored in
-[`ML/baselines`](../baselines). It gives the Node.js backend (and any other
-client) a clean, language-agnostic way to run model inference without loading
-PyTorch inside the web server.
+HTTP API around the authors' pretrained DRNet image-dehazing architecture. It
+gives the Node.js backend a language-agnostic way to run inference without
+loading PyTorch inside the web server.
 
 ## Supported models
 
 | Name | Architecture | Input range | Default size |
 | ---- | ------------ | ----------- | ------------ |
-| `dehamer` | Dehamer Swin-Transformer U-Net (`baselines/DeHamer`) | `[-1, 1]` | 224×224 (multiple of 8) |
-| `aod` | AOD-Net (`baselines/AOD_Net.py`) | `[0, 1]` | 224×224 |
-| `light_dehaze` | Light-DehazeNet (`baselines/Light-DehazeNet.py`) | `[0, 1]` | 224×224 |
+| `drnet` | DRNet 3-task (`ML/third_party/DRNet-AiO`) | `[0, 1]` RGB | 256×256 (multiple of 64) |
 
 All models are fully convolutional and accept any RGB image. The service
-letterbox-pads the upload to the requested square size, runs the model, crops
-back to the true aspect ratio and (by default) resizes the result to the
-original upload dimensions so the output always matches the input resolution.
+letterbox-pads the upload to the requested square size, applies DRNet's
+dehazing task prompt, crops back to the true aspect ratio and resizes the result
+to the original upload dimensions. Inference is refused if pretrained weights
+are missing; random initialization is never exposed.
 
 ## Quick start
 
-From the repository root on Windows, run `npm run setup` once and then
-`npm run dev`. The setup creates the shared ML virtual environment, installs
-CPU PyTorch and the inference dependencies; `npm run dev` starts the ML
-service, API and web client together. The service loads its optional settings
-from this directory's `.env` file.
+From the repository root on Windows, run `npm run setup`, then
+`npm run weights:drnet`, then `npm run dev`. The setup creates the shared ML
+virtual environment and installs CPU PyTorch and inference dependencies. The
+service loads optional settings from this directory's `.env` file.
 
 Configuration is read from environment variables (see `.env.example`).
 Important ones:
 
 | Variable | Default | Purpose |
 | -------- | ------- | ------- |
-| `ML_MODEL_TYPE` | `aod` | Default model for `/predict` |
-| `ML_MODEL_PATH` | *(empty)* | Explicit checkpoint path for the default model. Otherwise the service looks for `ML/checkpoints/<model>_best.pt`. |
-| `ML_AOD_MODEL_PATH` | *(empty)* | Optional AOD-specific checkpoint path. Equivalent model-specific overrides exist for `dehamer` and `light_dehaze`. |
-| `ML_INPUT_SIZE` | `224` | Square input size (must be multiple of 8 for `dehamer`) |
+| `ML_MODEL_TYPE` | `drnet` | Default model for `/predict` |
+| `ML_DRNET_MODEL_PATH` | `ML/checkpoints/DRNet_3tasks.pth` | Optional explicit path to the official 3-task weights |
+| `ML_INPUT_SIZE` | `256` | Square input size, divisible by 64 |
 | `ML_DEVICE` | `auto` | `cpu` / `cuda` / `auto` |
 
 ## Endpoints
@@ -51,15 +47,15 @@ Metadata for every registered architecture (no model is loaded).
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `image` | yes | Hazy image (JPEG / PNG / WebP / BMP / TIFF) |
-| `model` | no | `aod` (default) \| `dehamer` \| `light_dehaze` |
+| `model` | no | `drnet` (default) |
 | `size` | no | Square input size, 64–4096 |
 | `return_original_size` | no | `true` (default) resizes output back to upload resolution |
 
 Returns the dehazed image as **PNG bytes**, with metadata headers:
 
 ```
-X-Model: aod
-X-Input-Size: 224
+X-Model: drnet
+X-Input-Size: 256
 X-Output-Width: 640
 X-Output-Height: 480
 X-Inference-Ms: 123.45
@@ -71,7 +67,7 @@ Example:
 ```bash
 curl -X POST http://127.0.0.1:8100/predict \
   -F "image=@hazy.jpg" \
-  -F "model=aod" \
+  -F "model=drnet" \
   -o dehazed.png
 ```
 

@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight, Activity, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { useSession } from "@/components/providers/SessionProvider";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Stat } from "@/components/ui/Stat";
 import { useModels } from "@/hooks/useModels";
 import { formatDateTime, formatMs } from "@/lib/format";
 import { clearHistory, getHistory } from "@/lib/history";
 import type { HistoryEntry } from "@/lib/types";
-import { useEffect, useState } from "react";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -25,11 +25,8 @@ export default function DashboardOverview() {
   const { health, loading } = useModels();
   const [history, setHistory] = useState<HistoryEntry[] | null>(null);
 
-  // Read localStorage after mount (SSR-safe).
   useEffect(() => {
     let ignore = false;
-    // The async boundary keeps the first client render identical to the
-    // server's (both show the skeleton).
     Promise.resolve().then(() => {
       if (!ignore) setHistory(getHistory());
     });
@@ -45,66 +42,73 @@ export default function DashboardOverview() {
     <div className="animate-fade-up">
       <PageHeader
         title={`${greeting()}, ${firstName}.`}
-        description="Here's the state of your de-hazing workspace."
+        description="Your image restoration workspace at a glance."
+        actions={
+          <Link href="/studio" className="btn btn-primary group gap-2">
+            New de-haze
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </Link>
+        }
       />
 
-      {/* Service snapshot */}
-      <section className="rounded-box border border-base-300/70 bg-base-100 px-5 py-4">
+      <section aria-labelledby="service-heading" className="border-y border-base-300/80 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <Activity className="h-[1.1rem] w-[1.1rem] text-maroon" strokeWidth={1.8} aria-hidden="true" />
+            <h2 id="service-heading" className="text-sm font-semibold tracking-tight">Inference service</h2>
+          </div>
+          {!loading && (
+            <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${serviceOnline ? "bg-secondary text-secondary-content" : "bg-error/10 text-error"}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${serviceOnline ? "bg-success" : "bg-error"}`} aria-hidden="true" />
+              {serviceOnline ? "Online" : "Offline"}
+            </span>
+          )}
+        </div>
+
         {loading ? (
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            {[0, 1].map((i) => (
-              <div key={i} className="skeleton h-10" />
-            ))}
+          <div className="mt-5 grid gap-5 sm:grid-cols-2" aria-busy="true" aria-label="Loading service status">
+            <div className="skeleton h-12" />
+            <div className="skeleton h-12" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <Stat
-              label="Inference service"
-              value={serviceOnline ? "Online" : "Offline"}
-              hint={serviceOnline ? health!.status : "not reachable"}
-            />
-            <Stat
-              label="Default model"
-              value={serviceOnline ? health!.model : "—"}
-            />
-          </div>
+          <dl className="mt-4 grid gap-5 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-base-content/55">Connection</dt>
+              <dd className="mt-1 text-sm font-medium">{serviceOnline ? health!.status : "Not reachable"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-base-content/55">Default model</dt>
+              <dd className="mt-1 font-mono text-sm font-medium">{serviceOnline ? health!.model : "Unavailable"}</dd>
+            </div>
+          </dl>
         )}
+
         {!loading && !serviceOnline && (
           <Notice variant="warning" className="mt-4">
-            The ML inference service isn&apos;t responding. De-hazing is
-            unavailable until it&apos;s back — everything else keeps working.
+            The ML inference service isn&apos;t responding. De-hazing is unavailable until it&apos;s back. Your workspace and saved local history remain available.
           </Notice>
         )}
       </section>
 
-      {/* Primary action */}
-      <Link
-        href="/studio"
-        className="group mt-6 flex items-center justify-between gap-4 rounded-box bg-base-content px-6 py-6 text-base-100 transition-opacity hover:opacity-95"
-      >
-        <div>
-          <p className="text-base font-semibold tracking-tight">Run a de-haze</p>
-          <p className="mt-1 text-sm text-base-100/65">
-            Upload a hazy image and compare the restored result side by side.
+      <section aria-labelledby="start-heading" className="mt-8 flex flex-wrap items-center justify-between gap-5 rounded-box border border-base-300/80 bg-base-200/55 px-5 py-5 sm:px-6">
+        <div className="max-w-xl">
+          <h2 id="start-heading" className="text-sm font-semibold tracking-tight">Restore an image</h2>
+          <p className="mt-1 text-sm leading-relaxed text-base-content/60">
+            Upload a hazy photograph, choose a model, and compare the result with the original.
           </p>
         </div>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1"
-          aria-hidden="true"
-        >
-          <path d="M4 12h15m0 0-6-6m6 6-6 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </Link>
+        <Link href="/studio" className="link-chevron group shrink-0">
+          Open Studio
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </Link>
+      </section>
 
-      {/* Recent activity */}
-      <section className="mt-10">
-        <div className="mb-4 flex items-end justify-between gap-4">
+      <section aria-labelledby="activity-heading" className="mt-10">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Recent activity</h2>
-            <p className="mt-0.5 text-xs text-base-content/50">
-              Runs are recorded on this device only — the de-haze API is stateless.
+            <h2 id="activity-heading" className="text-lg font-semibold tracking-tight">Recent activity</h2>
+            <p className="mt-1 text-xs text-base-content/55">
+              Runs are saved in this browser. The de-haze API is stateless.
             </p>
           </div>
           {history && history.length > 0 && (
@@ -114,18 +118,17 @@ export default function DashboardOverview() {
                 clearHistory();
                 setHistory([]);
               }}
-              className="btn btn-ghost btn-xs text-base-content/60"
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-base-content/55 transition-colors hover:bg-base-200 hover:text-base-content"
             >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               Clear history
             </button>
           )}
         </div>
 
         {history === null && (
-          <div className="space-y-2">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="skeleton h-16 w-full" />
-            ))}
+          <div className="divide-y divide-base-300/70 border-y border-base-300/80" aria-busy="true" aria-label="Loading recent activity">
+            {[0, 1, 2].map((index) => <div key={index} className="skeleton my-3 h-[3.25rem] w-full" />)}
           </div>
         )}
 
@@ -133,44 +136,42 @@ export default function DashboardOverview() {
           <EmptyState
             title="No runs yet"
             description="De-hazed results from this browser will appear here with their inference details."
-            action={
-              <Link href="/studio" className="btn btn-primary btn-sm">
-                Open the Studio
-              </Link>
-            }
+            action={<Link href="/studio" className="btn btn-primary btn-sm">Open the Studio</Link>}
           />
         )}
 
         {history !== null && history.length > 0 && (
-          <ul className="divide-y divide-base-300/70 rounded-box border border-base-300/70 bg-base-100">
-            {history.map((entry) => (
-              <li key={entry.id} className="flex items-center gap-4 px-4 py-3 sm:px-5">
-                <span className="relative flex shrink-0 items-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL thumbnail */}
-                  <img
-                    src={entry.inputThumb}
-                    alt=""
-                    className="h-12 w-12 rounded-field border border-base-300 object-cover"
-                  />
-                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL thumbnail */}
-                  <img
-                    src={entry.outputThumb}
-                    alt=""
-                    className="-ml-3 h-12 w-12 rounded-field border border-base-100 object-cover shadow-sm"
-                  />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{entry.inputName}</span>
-                  <span className="mt-0.5 block font-mono text-xs text-base-content/50">
-                    {entry.model} · {formatMs(entry.inferenceMs)} · {entry.outputWidth}×{entry.outputHeight}
+          <div className="overflow-hidden border-y border-base-300/80">
+            <div className="hidden grid-cols-[minmax(0,1.8fr)_minmax(7rem,0.8fr)_7rem_minmax(8.5rem,1fr)] gap-4 bg-base-200/60 px-4 py-2.5 text-[0.6875rem] font-medium text-base-content/55 sm:grid sm:px-5">
+              <span>Source image</span>
+              <span>Model</span>
+              <span>Inference</span>
+              <span>Processed</span>
+            </div>
+            <ul className="divide-y divide-base-300/70">
+              {history.map((entry) => (
+                <li key={entry.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3.5 transition-colors hover:bg-base-200/35 sm:grid-cols-[minmax(0,1.8fr)_minmax(7rem,0.8fr)_7rem_minmax(8.5rem,1fr)] sm:gap-4 sm:px-5">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex shrink-0 items-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- data URL thumbnail */}
+                      <img src={entry.inputThumb} alt="" className="h-10 w-12 rounded-md border border-base-300 object-cover" />
+                      {/* eslint-disable-next-line @next/next/no-img-element -- data URL thumbnail */}
+                      <img src={entry.outputThumb} alt="" className="-ml-3 h-10 w-12 rounded-md border-2 border-white object-cover" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{entry.inputName}</span>
+                      <span className="mt-0.5 block truncate text-[0.6875rem] text-base-content/50 sm:hidden">
+                        {entry.model} · {formatMs(entry.inferenceMs)} · {formatDateTime(entry.createdAt)}
+                      </span>
+                    </span>
                   </span>
-                </span>
-                <span className="shrink-0 text-xs text-base-content/45">
-                  {formatDateTime(entry.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <span className="hidden truncate font-mono text-xs text-base-content/70 sm:block">{entry.model}</span>
+                  <span className="text-right font-mono text-xs text-base-content/65 sm:text-left">{formatMs(entry.inferenceMs)}</span>
+                  <span className="hidden text-xs text-base-content/55 sm:block">{formatDateTime(entry.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </section>
     </div>

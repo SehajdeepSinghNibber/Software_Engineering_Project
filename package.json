@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "concurrently -k -n ml,api,web -c yellow,cyan,green \"npm:ml\" \"npm:api\" \"npm:web\"",
     "ml": "cd ML\\inference_service && .venv\\Scripts\\python.exe app.py",
-    "api": "npm run dev --prefix server",
-    "web": "npm run dev --prefix client",
+    "api": "set \"API_PORT=8000\" && npm run dev --prefix server",
+    "web": "set \"PORT=3000\" && npm run dev --prefix client",
     "train:ml": "ML\\inference_service\\.venv\\Scripts\\python.exe ML\\training\\train_aod.py",
+    "weights:drnet": "ML\\inference_service\\.venv\\Scripts\\python.exe ML\\inference_service\\download_drnet_weights.py",
     "setup": "npm install && npm install --prefix server && npm install --prefix client && python -m venv ML\\inference_service\\.venv && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install -r ML\\inference_service\\requirements.txt"
   },
   "devDependencies": {
