@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-dotenv.config();
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+dotenv.config({ path: path.join(projectRoot, ".env") });
 
 const config = {
     PORT : process.env.PORT,
@@ -29,7 +32,7 @@ const config = {
     // Maximum accepted size of an uploaded hazy image (MB).
     ML_MAX_FILE_SIZE_MB : Number(process.env.ML_MAX_FILE_SIZE_MB || 10),
     // Default model used when the request does not specify one.
-    ML_DEFAULT_MODEL : process.env.ML_DEFAULT_MODEL || "aod"
+    ML_DEFAULT_MODEL : process.env.ML_DEFAULT_MODEL || "drnet"
 }
 
 export default config;

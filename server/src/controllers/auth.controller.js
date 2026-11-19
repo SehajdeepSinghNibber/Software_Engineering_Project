@@ -1,4 +1,5 @@
-import cloudinary from "../lib/cloudinary.js";
+import { Readable } from "node:stream";
+import cloudinary, { isCloudinaryConfigured } from "../lib/cloudinary.js";
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs"
@@ -121,30 +122,106 @@ export const signout = async (request, reply) => {
 };
 
 export const updateProfile = async (request, reply) => {
+    let uploadedPublicId;
     try {
-        
-        const { profilePic } = request.body;
-
         const userId = request.user._id;
+        let imageBuffer;
+        let contentType;
 
-        if(!profilePic){
-            return reply.code(400).send({
-                message: "Profile Pic is required"
-            })
+        if (request.isMultipart()) {
+            let file;
+            try {
+                file = await request.file({
+                    limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0, parts: 1 },
+                });
+            } catch (error) {
+                if (error?.statusCode === 413 || error?.code === "FST_REQ_FILE_TOO_LARGE") {
+                    return reply.code(413).send({ message: "Profile photos are limited to 2MB." });
+                }
+                return reply.code(400).send({ message: "Invalid profile photo upload." });
+            }
+            if (!file) {
+                return reply.code(400).send({ message: "Profile photo is required." });
+            }
+            try {
+                imageBuffer = await file.toBuffer();
+            } catch (error) {
+                if (error?.statusCode === 413 || error?.code === "FST_REQ_FILE_TOO_LARGE") {
+                    return reply.code(413).send({ message: "Profile photos are limited to 2MB." });
+                }
+                return reply.code(400).send({ message: "Could not read the uploaded image." });
+            }
+            contentType = file.mimetype?.toLowerCase();
+            if (file.file.truncated) {
+                return reply.code(413).send({ message: "Profile photos are limited to 2MB." });
+            }
+        } else {
+            // Keep the previous JSON data-URL contract working for older clients.
+            const profilePic = request.body?.profilePic;
+            const match = typeof profilePic === "string"
+                ? profilePic.match(/^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/=]+)$/)
+                : null;
+            if (!match) {
+                return reply.code(400).send({ message: "Profile photo is required as a JPEG or PNG image." });
+            }
+            contentType = match[1];
+            imageBuffer = Buffer.from(match[2], "base64");
         }
 
-        const uploadResponse = await cloudinary.uploader.upload(profilePic);
+        if (imageBuffer.length === 0) {
+            return reply.code(400).send({ message: "The selected image is empty." });
+        }
+        if (imageBuffer.length > 2 * 1024 * 1024) {
+            return reply.code(413).send({ message: "Profile photos are limited to 2MB." });
+        }
+
+        const isPng = imageBuffer.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"));
+        const isJpeg = imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8 && imageBuffer[2] === 0xff;
+        const normalizedType = contentType === "image/jpg" ? "image/jpeg" : contentType;
+        if ((normalizedType === "image/png" && !isPng) ||
+            (normalizedType === "image/jpeg" && !isJpeg) ||
+            !["image/png", "image/jpeg"].includes(normalizedType)) {
+            return reply.code(415).send({ message: "Only valid JPEG and PNG images are supported." });
+        }
+
+        if (!isCloudinaryConfigured()) {
+            request.log.error("Cloudinary is not configured; check the server environment variables.");
+            return reply.code(503).send({ message: "Image uploads are temporarily unavailable." });
+        }
+
+        const uploadResponse = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({
+                folder: "clearlens/profile-photos",
+                public_id: `user-${String(userId)}`,
+                overwrite: true,
+                resource_type: "image",
+                allowed_formats: ["jpg", "jpeg", "png"],
+                timeout: 60_000,
+            }, (error, result) => error ? reject(error) : resolve(result));
+            stream.on("error", reject);
+            Readable.from([imageBuffer]).pipe(stream);
+        });
+        uploadedPublicId = uploadResponse.public_id;
+
         const updatedUser = await User.findByIdAndUpdate(userId, {
             profilePic: uploadResponse.secure_url
         },{new: true}).select("-password");
 
-        reply.code(200).send(updatedUser);
+        return reply.code(200).send(updatedUser);
 
     } catch (error) {
-        console.log(error.message);
-        reply.code(500).send({
-            message: "Internal Server Error"
-        });
+        if (error?.statusCode === 413 || error?.code === "FST_REQ_FILE_TOO_LARGE") {
+            return reply.code(413).send({ message: "Profile photos are limited to 2MB." });
+        }
+        request.log.error({ error: error?.message }, "profile photo update failed");
+        if (uploadedPublicId) {
+            try {
+                await cloudinary.uploader.destroy(uploadedPublicId, { resource_type: "image" });
+            } catch (cleanupError) {
+                request.log.warn({ error: cleanupError?.message }, "could not remove an unlinked profile upload");
+            }
+        }
+        return reply.code(502).send({ message: "Could not upload the profile photo. Please try again." });
     }
 }
 

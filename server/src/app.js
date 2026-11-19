@@ -8,7 +8,10 @@ import multipart from "@fastify/multipart";
 import config from "./config/config.js";
 
 const app = Fastify({
-    logger: true
+    logger: true,
+    // Preserve support for the former 2MB base64 profile-photo payloads while
+    // new clients upload raw multipart files.
+    bodyLimit: 4 * 1024 * 1024,
 });
 
 await app.register(helmet);

@@ -25,12 +25,12 @@ export default function SettingsView() {
 
   if (!user) return null;
 
-  const savePhoto = async (dataUrl: string) => {
+  const savePhoto = async (file: File) => {
     setSavingPhoto(true);
     setPhotoError(null);
     setPhotoSaved(false);
     try {
-      const updated = await authApi.updateProfile(dataUrl);
+      const updated = await authApi.updateProfile(file);
       setUser(updated);
       setPhotoSaved(true);
     } catch (err) {
@@ -48,8 +48,8 @@ export default function SettingsView() {
     event.target.value = "";
     if (!selected) return;
 
-    if (!selected.type.startsWith("image/")) {
-      setPhotoError("Please choose an image file.");
+    if (!["image/jpeg", "image/png"].includes(selected.type)) {
+      setPhotoError("Please choose a JPEG or PNG image.");
       return;
     }
     if (selected.size > MAX_PHOTO_MB * 1024 * 1024) {
@@ -57,12 +57,7 @@ export default function SettingsView() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") void savePhoto(reader.result);
-    };
-    reader.onerror = () => setPhotoError("Could not read the selected file.");
-    reader.readAsDataURL(selected);
+    void savePhoto(selected);
   };
 
   const handleSignOut = async () => {
@@ -118,7 +113,7 @@ export default function SettingsView() {
           <input
             ref={photoInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png"
             className="sr-only"
             tabIndex={-1}
             onChange={onPhotoChange}

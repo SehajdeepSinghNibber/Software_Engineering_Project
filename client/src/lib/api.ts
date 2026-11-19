@@ -90,12 +90,15 @@ export const authApi = {
 
   check: () => request<User>("/api/v1/auth/check"),
 
-  updateProfile: (profilePic: string) =>
-    request<User>("/api/v1/auth/update-profile", {
+  updateProfile: (file: File) => {
+    const form = new FormData();
+    form.append("profilePic", file, file.name);
+    return request<User>("/api/v1/auth/update-profile", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profilePic }),
-    }),
+      body: form,
+      timeoutMs: 60_000,
+    });
+  },
 };
 
 /* ------------------------------------------------------------------ */
