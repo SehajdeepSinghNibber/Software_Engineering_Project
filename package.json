@@ -5,7 +5,7 @@
   "description": "ClearLens — image de-hazing platform. Runs the ML inference service, the Fastify API and the Next.js client together in development.",
   "scripts": {
     "dev": "concurrently -k -n ml,api,web -c yellow,cyan,green \"npm:ml\" \"npm:api\" \"npm:web\"",
-    "ml": "cd ML\\inference_service && .venv\\Scripts\\python.exe app.py",
+    "ml": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1",
     "api": "set \"API_PORT=8000\" && npm run dev --prefix server",
     "web": "set \"PORT=3000\" && npm run dev --prefix client",
     "train:ml": "ML\\inference_service\\.venv\\Scripts\\python.exe ML\\training\\train_aod.py",
