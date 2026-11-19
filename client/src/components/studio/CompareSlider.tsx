@@ -4,7 +4,7 @@ import { useState } from "react";
 
 /**
  * Before/after comparison. The hazy input sits underneath; the de-hazed output
- * is revealed up to a draggable divider. An invisible range input drives the
+ * is revealed to the right of a draggable divider. An invisible range input drives the
  * position so pointer, touch and keyboard all work.
  */
 export function CompareSlider({
@@ -22,14 +22,14 @@ export function CompareSlider({
       {/* eslint-disable-next-line @next/next/no-img-element -- data/object URLs */}
       <img src={before} alt="Hazy input" draggable={false} className="block w-full" />
 
-      {/* De-hazed output, clipped from the left edge to the divider. */}
+      {/* De-hazed output, clipped from the divider to the right edge. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- data URLs */}
       <img
         src={after}
         alt="De-hazed result"
         draggable={false}
         className="absolute inset-0 h-full w-full object-cover"
-        style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+        style={{ clipPath: `inset(0 0 0 ${position}%)` }}
       />
 
       {/* Divider + grip */}
