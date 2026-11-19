@@ -66,7 +66,8 @@ def health():
         "status": "ok",
         "uptimeSeconds": round(time.time() - STARTED_AT, 2),
         "model": DEFAULT_MODEL,
-        "defaultSize": settings.input_size,
+        "defaultSize": model_loader.MODEL_REGISTRY[DEFAULT_MODEL]["default_size"],
+        "nativeResolution": model_loader.MODEL_REGISTRY[DEFAULT_MODEL].get("native_resolution", False),
         "models": list(model_loader.MODEL_REGISTRY.keys()),
     }
 

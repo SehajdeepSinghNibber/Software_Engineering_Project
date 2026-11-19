@@ -80,8 +80,8 @@ export default function ModelsPage() {
                 </p>
                 <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1 font-mono text-xs text-base-content/50">
                   <div className="flex gap-1.5">
-                    <dt className="text-base-content/40">default size</dt>
-                    <dd>{model.defaultSize}px</dd>
+                    <dt className="text-base-content/40">input size</dt>
+                    <dd>{model.nativeResolution ? "native resolution" : `${model.defaultSize}px`}</dd>
                   </div>
                   <div className="flex gap-1.5">
                     <dt className="text-base-content/40">divisible by</dt>

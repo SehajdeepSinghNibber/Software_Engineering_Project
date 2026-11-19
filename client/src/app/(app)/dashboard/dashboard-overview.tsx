@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowRight, Activity, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-
 import { useSession } from "@/components/providers/SessionProvider";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
@@ -128,7 +127,7 @@ export default function DashboardOverview() {
 
         {history === null && (
           <div className="divide-y divide-base-300/70 border-y border-base-300/80" aria-busy="true" aria-label="Loading recent activity">
-            {[0, 1, 2].map((index) => <div key={index} className="skeleton my-3 h-[3.25rem] w-full" />)}
+            {[0, 1, 2].map((index) => <div key={index} className="skeleton my-3 h-13 w-full" />)}
           </div>
         )}
 

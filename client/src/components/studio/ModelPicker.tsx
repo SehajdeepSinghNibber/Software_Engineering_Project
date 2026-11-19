@@ -8,7 +8,7 @@ const FALLBACK_MODELS: ModelInfo[] = [
     name: "drnet",
     description: "Prior-Guided Dynamic Reparameterization Network using the authors’ pretrained 3-task dehazing checkpoint.",
     architecture: "Prior-Guided Dynamic Reparameterization Network",
-    defaultSize: 256,
+    defaultSize: 0,
     divisible: 64,
     norm: "01",
     weightsState: "missing",
@@ -16,6 +16,7 @@ const FALLBACK_MODELS: ModelInfo[] = [
     available: false,
     openSource: true,
     task: "Image dehazing",
+    nativeResolution: true,
   },
 ];
 
@@ -99,7 +100,7 @@ export function ModelPicker({
                     {model.description}
                   </span>
                   <span className="mt-1.5 block font-mono text-[0.6875rem] text-base-content/45">
-                    dehazing · default {model.defaultSize}px · {model.device === "cuda" ? "CUDA" : "CPU"} fallback available
+                    dehazing · {model.nativeResolution ? "native resolution" : `default ${model.defaultSize}px`} · {model.device === "cuda" ? "CUDA" : "CPU"} fallback available
                   </span>
                   {model.available === false && (
                     <span className="mt-2 block text-xs font-medium text-warning">

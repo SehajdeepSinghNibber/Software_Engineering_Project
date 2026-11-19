@@ -9,7 +9,7 @@ import torch
 import model_loader
 from config import settings
 from postprocess import tensor_to_png
-from preprocess import decode_image, prepare_tensor
+from preprocess import decode_image, prepare_drnet_tensor, prepare_native_tensor, prepare_tensor
 
 
 class BadRequestError(ValueError):
@@ -40,18 +40,6 @@ def predict(
 
     info = model_loader.MODEL_REGISTRY[name]
 
-    # ---- size validation --------------------------------------------------
-    input_size = size or settings.input_size or info["default_size"]
-    if not isinstance(input_size, int) or isinstance(input_size, bool):
-        raise BadRequestError("'size' must be an integer.")
-    if input_size < 64 or input_size > 4096:
-        raise BadRequestError("'size' must be between 64 and 4096.")
-    if input_size % info["divisible"] != 0:
-        raise BadRequestError(
-            f"'{name}' requires the input size to be a multiple of "
-            f"{info['divisible']} (got {input_size})."
-        )
-
     # ---- decode / prepare -------------------------------------------------
     try:
         img = decode_image(image_bytes)
@@ -60,7 +48,32 @@ def predict(
             if settings.input_norm in ("01", "11")
             else info["norm"]
         )
-        tensor, crop_box = prepare_tensor(img, input_size, norm)
+        if norm != info["norm"]:
+            raise BadRequestError(f"{name} requires {info['norm']} input normalization.")
+
+        if info.get("native_resolution"):
+            if size is not None:
+                raise BadRequestError(f"{info.get('display_name', name)} processes native resolution; omit 'size'.")
+            if name == "drnet":
+                tensor, crop_box = prepare_drnet_tensor(img)
+                input_size = max(img.size)
+            else:
+                tensor, crop_box = prepare_native_tensor(img, norm, info.get("max_side"))
+                input_size = max(crop_box[2], crop_box[3])
+        else:
+            input_size = size or settings.input_size or info["default_size"]
+            if not isinstance(input_size, int) or isinstance(input_size, bool):
+                raise BadRequestError("'size' must be an integer.")
+            if input_size < 64 or input_size > 4096:
+                raise BadRequestError("'size' must be between 64 and 4096.")
+            if input_size % info["divisible"] != 0:
+                raise BadRequestError(
+                    f"'{name}' requires the input size to be a multiple of "
+                    f"{info['divisible']} (got {input_size})."
+                )
+            tensor, crop_box = prepare_tensor(img, input_size, norm)
+    except BadRequestError:
+        raise
     except ValueError as exc:
         raise BadRequestError(str(exc)) from exc
 

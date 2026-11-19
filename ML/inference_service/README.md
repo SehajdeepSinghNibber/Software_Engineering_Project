@@ -8,13 +8,13 @@ loading PyTorch inside the web server.
 
 | Name | Architecture | Input range | Default size |
 | ---- | ------------ | ----------- | ------------ |
-| `drnet` | DRNet 3-task (`ML/third_party/DRNet-AiO`) | `[0, 1]` RGB | 256×256 (multiple of 64) |
+| `drnet` | DRNet 3-task (`ML/third_party/DRNet-AiO`) | `[0, 1]` RGB | Native image resolution (padded to 64px windows) |
 
 All models are fully convolutional and accept any RGB image. The service
-letterbox-pads the upload to the requested square size, applies DRNet's
-dehazing task prompt, crops back to the true aspect ratio and resizes the result
-to the original upload dimensions. Inference is refused if pretrained weights
-are missing; random initialization is never exposed.
+keeps the upload at native resolution, applies DRNet's dehazing task prompt and
+task-specific reparameterization, then pads to its 64-pixel window boundary.
+The result is cropped back to the original dimensions. Inference is refused if
+pretrained weights are missing; random initialization is never exposed.
 
 ## Quick start
 
@@ -30,7 +30,7 @@ Important ones:
 | -------- | ------- | ------- |
 | `ML_MODEL_TYPE` | `drnet` | Default model for `/predict` |
 | `ML_DRNET_MODEL_PATH` | `ML/checkpoints/DRNet_3tasks.pth` | Optional explicit path to the official 3-task weights |
-| `ML_INPUT_SIZE` | `256` | Square input size, divisible by 64 |
+| `ML_INPUT_SIZE` | *(unused for DRNet)* | DRNet runs at native image resolution |
 | `ML_DEVICE` | `auto` | `cpu` / `cuda` / `auto` |
 
 ## Endpoints

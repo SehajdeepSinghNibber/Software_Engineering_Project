@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 
 import { useSession } from "@/components/providers/SessionProvider";
 import { CompareSlider } from "@/components/studio/CompareSlider";
@@ -15,13 +15,6 @@ import { formatBytes, formatMs } from "@/lib/format";
 import { recordRun } from "@/lib/history";
 import type { DehazeResult } from "@/lib/types";
 
-const SIZE_OPTIONS = [
-  { value: "auto", label: "Auto (model default)" },
-  { value: "256", label: "256 px" },
-  { value: "384", label: "384 px" },
-  { value: "512", label: "512 px" },
-] as const;
-
 export default function StudioWorkspace() {
   const { refresh } = useSession();
   const { models, loading: modelsLoading } = useModels();
@@ -29,7 +22,6 @@ export default function StudioWorkspace() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [modelId, setModelId] = useState("drnet");
-  const [sizeOption, setSizeOption] = useState<string>("auto");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<DehazeResult | null>(null);
@@ -71,9 +63,6 @@ export default function StudioWorkspace() {
     setPreviewUrl(null);
   };
 
-  const onSizeChange = (event: ChangeEvent<HTMLSelectElement>) =>
-    setSizeOption(event.target.value);
-
   const run = async () => {
     if (!file || busy || selectedModel?.available === false) return;
     setBusy(true);
@@ -81,11 +70,7 @@ export default function StudioWorkspace() {
     setError(null);
     setResult(null);
     try {
-      const { data } = await mlApi.dehaze({
-        file,
-        model: effectiveModelId,
-        size: sizeOption === "auto" ? undefined : Number(sizeOption),
-      });
+      const { data } = await mlApi.dehaze({ file, model: effectiveModelId });
       setResult(data);
       if (previewUrl) {
         recordRun(data, { name: file.name, previewUrl }).catch(() => {
@@ -156,31 +141,10 @@ export default function StudioWorkspace() {
 
           <div className="my-5 h-px bg-base-300/70" />
 
-          {/* 3 · Input size */}
-          <div>
-            <label
-              htmlFor="input-size"
-              className="mb-2 block text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-base-content/50"
-            >
-              3 · Input size
-            </label>
-            <select
-              id="input-size"
-              value={sizeOption}
-              onChange={onSizeChange}
-              disabled={busy}
-              className="select w-full bg-base-100"
-            >
-              {SIZE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1.5 text-xs text-base-content/50">
-              {selectedModel
-                ? `Auto uses ${selectedModel.name}'s default of ${selectedModel.defaultSize}px. Larger sizes take longer on CPU.`
-                : "Leave on Auto to use the model's default input resolution."}
+          <div className="rounded-field bg-base-200/60 px-3.5 py-3">
+            <p className="text-xs font-medium">Native image resolution</p>
+            <p className="mt-1 text-xs leading-relaxed text-base-content/55">
+              DRNet keeps the uploaded detail and pads only to its 64px processing window.
             </p>
           </div>
 

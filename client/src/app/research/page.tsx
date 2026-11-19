@@ -13,7 +13,7 @@ const MODELS = [
     blurb:
       "A multi-task image restoration model using task-specific prompts and dynamic reparameterization. ClearLens selects its trained dehazing task and applies the official three-task checkpoint.",
     input: "0 … 1 RGB",
-    size: "256 px default",
+    size: "Native image resolution",
     source: "AVC2-UESTC/DRNet-AiO",
   },
 ] as const;
@@ -21,8 +21,8 @@ const MODELS = [
 const STAGES = [
   {
     step: "01",
-    title: "Letterbox resize",
-    body: "The RGB frame is resized with its aspect ratio preserved and padded for DRNet’s windowed stages.",
+    title: "Native resolution",
+    body: "The RGB frame remains at its original resolution and is padded to DRNet’s 64px window boundary.",
   },
   {
     step: "02",

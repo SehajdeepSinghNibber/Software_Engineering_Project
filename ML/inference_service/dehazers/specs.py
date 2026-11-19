@@ -56,6 +56,32 @@ class ModelSpec:
 
 
 SPECS: dict[str, ModelSpec] = {
+    "dehazeformer_b_rice1": ModelSpec(
+        id="dehazeformer_b_rice1",
+        display_name="DehazeFormer-B · RICE1",
+        architecture="DehazeFormer-B (five-stage vision-transformer U-Net)",
+        description="RICE1-adapted DehazeFormer-B checkpoint supplied for real-world haze.",
+        paper="Song, Zhou, Qian, Du — Vision Transformers for Single Image Dehazing, IEEE TIP 2023",
+        year=2023,
+        repo="https://github.com/IDKiro/DehazeFormer",
+        license="MIT",
+        license_note="DehazeFormer implementation is MIT licensed; the provided fine-tuned checkpoint is attributed to its sender.",
+        trained_on="RICE1",
+        params_millions=2.51,
+        default_max_side=1536,
+        pad_multiple=4,
+        input_range="[-1, 1]",
+        reported_psnr=None,
+        tags=("transformer", "real-world"),
+        weights=WeightsSource(
+            gdrive_id="1hYr_DC25W1WPjgmkS7DQebMU33mFkGVM",
+            filename="dehazeformer-b-rice1.pth",
+            sha256="05b33da550069bde05726cd95e1b9bd73eed0d18d40470a8ca853da15b296d82",
+            size_bytes=11229929,
+            fmt="state_dict",
+            state_key="state_dict",
+        ),
+    ),
     "dehazeformer_b_outdoor": ModelSpec(
         id="dehazeformer_b_outdoor",
         display_name="DehazeFormer-B",
@@ -79,7 +105,9 @@ SPECS: dict[str, ModelSpec] = {
         reported_psnr=34.95,
         tags=("transformer", "recommended"),
         weights=WeightsSource(
-            gdrive_id="1w6239qHuA0Wlr-f-Mm-9sOgYfyZnxYAj",
+            # The user's SOTS link has the same SHA-256 as the authors' OTS
+            # checkpoint and is an accessible mirror of the exact same bytes.
+            gdrive_id="1tuv7BPfe4CK9k35T3Ww20XUoO1UioZcz",
             filename="outdoor/dehazeformer-b.pth",
             sha256="1cf1ba0f20515c492214f8a813a6de70dafc81b539e7d3337a40b00d63fc6f6c",
             size_bytes=11229929,

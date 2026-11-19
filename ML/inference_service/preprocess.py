@@ -1,19 +1,4 @@
-"""Image decoding and model-input preparation.
-
-All dehazing models in this project are fully convolutional and consume RGB
-images of arbitrary size.  To keep behaviour deterministic and compatible with
-the way the models were trained we:
-
-1. decode the upload to an RGB image;
-2. scale it so its longest side matches the requested square ``size`` while
-   preserving the aspect ratio;
-3. letterbox-pad the remaining area with zeros to a ``size x size`` square;
-4. normalise to the model-specific value range (``[0, 1]`` or ``[-1, 1]``);
-5. convert to a ``(1, 3, size, size)`` float tensor.
-
-The padding rectangle is returned so ``postprocess`` can crop the model output
-back to the true aspect ratio before resizing to the original dimensions.
-"""
+"""Decode RGB uploads and prepare model-specific input tensors."""
 
 from __future__ import annotations
 
@@ -21,6 +6,7 @@ import io
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image, UnidentifiedImageError
 
 
@@ -79,3 +65,38 @@ def prepare_tensor(
 
     tensor = torch.from_numpy(canvas).permute(2, 0, 1).unsqueeze(0).contiguous()
     return tensor, (top, left, new_h, new_w)
+
+
+def prepare_drnet_tensor(
+    img: Image.Image,
+) -> tuple[torch.Tensor, tuple[int, int, int, int]]:
+    """Match DRNet's official inference path: native RGB resolution and
+    reflection padding to the next 64-pixel window boundary.
+    """
+    w, h = img.size
+    array = np.asarray(img, dtype=np.float32) / 255.0
+    tensor = torch.from_numpy(array).permute(2, 0, 1).unsqueeze(0).contiguous()
+    pad_h = 64 - (h % 64)
+    pad_w = 64 - (w % 64)
+    if pad_h or pad_w:
+        mode = "reflect" if h > pad_h and w > pad_w and h > 1 and w > 1 else "replicate"
+        tensor = F.pad(tensor, (0, pad_w, 0, pad_h), mode=mode)
+    return tensor, (0, 0, h, w)
+
+
+def prepare_native_tensor(
+    img: Image.Image, norm: str, max_side: int | None = None
+) -> tuple[torch.Tensor, tuple[int, int, int, int]]:
+    """Keep aspect and native size unless a model's memory cap is exceeded."""
+    w, h = img.size
+    scale = min(1.0, max_side / max(w, h)) if max_side else 1.0
+    new_w = max(1, round(w * scale))
+    new_h = max(1, round(h * scale))
+    if (new_w, new_h) != img.size:
+        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+    array = np.asarray(img, dtype=np.float32) / 255.0
+    if norm == "11":
+        array = array * 2.0 - 1.0
+    tensor = torch.from_numpy(array).permute(2, 0, 1).unsqueeze(0).contiguous()
+    return tensor, (0, 0, new_h, new_w)

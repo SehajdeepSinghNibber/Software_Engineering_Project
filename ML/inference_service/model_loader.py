@@ -28,6 +28,8 @@ from config import (
     ML_DIR,
     settings,
 )
+from dehazers.specs import SPECS as DEHAZEFORMER_SPECS
+from dehazers.weights import WeightsError, load_state_dict as load_managed_state, weights_path as managed_weights_path
 
 
 class ModelLoadError(RuntimeError):
@@ -120,12 +122,65 @@ MODEL_REGISTRY: dict[str, dict[str, Any]] = {
             "with the authors' pretrained dehaze checkpoint."
         ),
         "architecture": "Prior-Guided Dynamic Reparameterization Network",
-        "default_size": 256,
+        "default_size": None,
         "divisible": 64,
+        "native_resolution": True,
         "norm": "01",
         "prompt": [0.0, 1.0, 0.0],
     },
+    "aodnet": {
+        "build": _build_aod,
+        "description": "AOD-Net pretrained on synthetic NYU haze; a lightweight baseline for comparison.",
+        "display_name": "AOD-Net · NYU",
+        "architecture": "All-in-One Dehazing CNN",
+        "trained_on": "Synthetic NYU2 haze",
+        "default_size": None,
+        "divisible": 1,
+        "native_resolution": True,
+        "max_side": 1536,
+        "norm": "11",
+        "checkpoint_path": os.path.join(ML_DIR, "checkpoints", "pretrained", "aodnet_official.pth"),
+        "source_repo": "https://github.com/weberwcwei/AODnet-by-pytorch",
+        "license": "Unspecified upstream license",
+        "open_source": False,
+    },
+    "lightdehazenet": {
+        "build": _build_light_dehaze,
+        "description": "Light-DehazeNet pretrained on synthetic NYU2 haze; a compact comparison model.",
+        "display_name": "Light-DehazeNet · NYU",
+        "architecture": "Lightweight eight-convolution dehazing CNN",
+        "trained_on": "Synthetic NYU2 haze",
+        "default_size": None,
+        "divisible": 1,
+        "native_resolution": True,
+        "max_side": 1536,
+        "norm": "01",
+        "checkpoint_path": os.path.join(ML_DIR, "checkpoints", "pretrained", "lightdehazenet_official.pth"),
+        "source_repo": "https://github.com/hayatkhan8660-maker/Light-DehazeNet",
+        "license": "Unspecified upstream license",
+        "open_source": False,
+    },
 }
+
+for _model_id, _spec in DEHAZEFORMER_SPECS.items():
+    if not _model_id.startswith("dehazeformer_b_"):
+        continue
+    MODEL_REGISTRY[_model_id] = {
+        "build": _build_dehazeformer,
+        "description": _spec.description,
+        "display_name": _spec.display_name,
+        "architecture": _spec.architecture,
+        "trained_on": _spec.trained_on,
+        "default_size": None,
+        "divisible": _spec.pad_multiple,
+        "native_resolution": True,
+        "max_side": _spec.default_max_side,
+        "norm": "11",
+        "managed_weights": True,
+        "source_repo": _spec.repo,
+        "license": _spec.license,
+        "open_source": _spec.license == "MIT",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +200,11 @@ def _resolve_device() -> str:
 
 def _checkpoint_path(name: str) -> tuple[str | None, bool]:
     """Return a model-specific checkpoint path and whether it was explicit."""
+    info = MODEL_REGISTRY.get(name, {})
+    if info.get("managed_weights"):
+        return managed_weights_path(name), True
+    if info.get("checkpoint_path"):
+        return info["checkpoint_path"], True
     specific_path = os.getenv(f"ML_{name.upper()}_MODEL_PATH")
     if specific_path:
         return specific_path, True
@@ -168,6 +228,13 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
     or "untrained" when running on random initialisation.
     """
     path, explicit = _checkpoint_path(name)
+    if name in DEHAZEFORMER_SPECS:
+        try:
+            state = load_managed_state(name)
+            model.load_state_dict(state, strict=True)
+        except (WeightsError, RuntimeError) as exc:
+            raise ModelLoadError(f"Could not load pretrained weights for '{name}': {exc}") from exc
+        return "trained"
     if not path:
         raise ModelLoadError(
             f"Pretrained weights for '{name}' are missing. Download the official "
@@ -235,6 +302,16 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
     return "trained"
 
 
+def _specialize_drnet_for_dehazing(model: torch.nn.Module, info: dict[str, Any], device: str) -> None:
+    """Use the task-specific reparameterization from DRNet's official test script."""
+    module = importlib.import_module("net.DRNet_arch")
+    prompt = torch.tensor(info["prompt"], dtype=torch.float32, device=device).unsqueeze(0)
+    for layer in model.modules():
+        if isinstance(layer, module.DRMLP):
+            layer.switch_to_deploy(prompt)
+    model.eval()
+
+
 def get_model(name: str) -> dict[str, Any]:
     """Return the cached model entry for ``name``, building it if needed.
 
@@ -269,6 +346,8 @@ def get_model(name: str) -> dict[str, Any]:
 
         weights_state = _apply_checkpoint(model, name)
         if name == "drnet":
+            _specialize_drnet_for_dehazing(model, info, device)
+        if name == "drnet":
             # Match the authors' official inference script: prompt class 1 is
             # dehazing in [denoise, dehaze, derain].
             prompt = torch.tensor(info["prompt"], dtype=torch.float32, device=device).unsqueeze(0)
@@ -284,6 +363,7 @@ def get_model(name: str) -> dict[str, Any]:
             "default_size": info["default_size"],
             "prompt": prompt,
             "architecture": info.get("architecture", name),
+            "trained_on": info.get("trained_on"),
         }
         if settings.model_cache:
             _cache[name] = entry
@@ -295,19 +375,33 @@ def list_models() -> list[dict[str, Any]]:
     device = _resolve_device()
     result = []
     for name, info in MODEL_REGISTRY.items():
+        checkpoint, _ = _checkpoint_path(name)
+        available = bool(checkpoint and os.path.isfile(checkpoint))
+        if info.get("managed_weights"):
+            install_hint = f"Run `npm run weights:dehazeformer` to install {info['display_name']} weights."
+        elif name in {"aodnet", "lightdehazenet"}:
+            install_hint = "Run `npm run weights:models` to install the pretrained comparison weights."
+        else:
+            install_hint = "Install the DRNet checkpoint at ML/checkpoints/DRNet_3tasks.pth."
         result.append(
             {
                 "name": name,
+                "displayName": info.get("display_name", name),
                 "description": info["description"],
                 "architecture": info.get("architecture", name),
+                "trainedOn": info.get("trained_on"),
                 "defaultSize": info["default_size"],
+                "nativeResolution": info.get("native_resolution", False),
                 "divisible": info["divisible"],
                 "norm": settings.input_norm
                 if settings.input_norm in ("01", "11")
                 else info["norm"],
-                "weightsState": "trained" if os.path.isfile(_checkpoint_path(name)[0] or "") else "missing",
-                "available": os.path.isfile(_checkpoint_path(name)[0] or ""),
-                "openSource": True,
+                "weightsState": "trained" if available else "missing",
+                "available": available,
+                "installHint": install_hint,
+                "sourceRepo": info.get("source_repo"),
+                "license": info.get("license"),
+                "openSource": info.get("open_source", True),
                 "task": "Image dehazing",
                 "device": device,
             }

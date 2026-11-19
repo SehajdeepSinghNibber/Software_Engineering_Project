@@ -24,6 +24,7 @@ export type ModelInfo = {
   available?: boolean;
   openSource?: boolean;
   task?: string;
+  nativeResolution?: boolean;
 };
 
 /** GET /api/v1/ml/models -> data. */

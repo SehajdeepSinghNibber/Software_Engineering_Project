@@ -1,3 +1,9 @@
+param(
+    [string]$ScriptPath = "app.py",
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$ScriptArguments = @()
+)
+
 $ErrorActionPreference = "Stop"
 $serviceRoot = $PSScriptRoot
 Set-Location $serviceRoot
@@ -47,6 +53,12 @@ if (-not $python) {
     exit 1
 }
 
-Write-Host "Starting inference service with $python"
-& $python "app.py"
+$scriptFullPath = Join-Path $serviceRoot $ScriptPath
+if (-not (Test-Path $scriptFullPath)) {
+    Write-Error "Python entry point not found: $scriptFullPath"
+    exit 1
+}
+
+Write-Host "Starting $([System.IO.Path]::GetFileName($scriptFullPath)) with $python"
+& $python $scriptFullPath @ScriptArguments
 exit $LASTEXITCODE
