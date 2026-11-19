@@ -13,7 +13,7 @@ export type User = {
 export type ModelInfo = {
   name: string;
   description: string;
-  defaultSize: number;
+  defaultSize: number | null;
   /** Input dimension must be divisible by this factor. */
   divisible: number;
   /** Input normalisation applied by the inference service. */
@@ -21,6 +21,12 @@ export type ModelInfo = {
   weightsState: "trained" | "partial" | "untrained" | "missing";
   device: "cpu" | "cuda";
   architecture?: string;
+  displayName?: string;
+  trainedOn?: string;
+  sourceRepo?: string;
+  license?: string;
+  installHint?: string;
+  maxSide?: number;
   available?: boolean;
   openSource?: boolean;
   task?: string;
@@ -37,7 +43,8 @@ export type ServiceHealth = {
   status: string;
   uptimeSeconds: number;
   model: string;
-  defaultSize: number;
+  defaultSize: number | null;
+  nativeResolution?: boolean;
   models: string[];
 };
 

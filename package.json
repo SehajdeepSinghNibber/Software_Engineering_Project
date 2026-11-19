@@ -9,7 +9,11 @@
     "api": "set \"API_PORT=8000\" && npm run dev --prefix server",
     "web": "set \"PORT=3000\" && npm run dev --prefix client",
     "train:ml": "ML\\inference_service\\.venv\\Scripts\\python.exe ML\\training\\train_aod.py",
-    "weights:drnet": "ML\\inference_service\\.venv\\Scripts\\python.exe ML\\inference_service\\download_drnet_weights.py",
+    "weights:drnet": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 download_drnet_weights.py",
+    "weights:dehazeformer": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 download_weights.py dehazeformer_b_rice1 dehazeformer_b_outdoor",
+    "weights:models": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 download_weights.py --all",
+    "datasets:download": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 ..\\evaluation\\download_datasets.py",
+    "datasets:benchmark": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 ..\\evaluation\\benchmark.py",
     "setup": "npm install && npm install --prefix server && npm install --prefix client && python -m venv ML\\inference_service\\.venv && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu && ML\\inference_service\\.venv\\Scripts\\python.exe -m pip install -r ML\\inference_service\\requirements.txt"
   },
   "devDependencies": {

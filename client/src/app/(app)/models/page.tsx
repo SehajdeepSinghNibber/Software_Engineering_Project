@@ -27,7 +27,7 @@ export default function ModelsPage() {
     <div className="animate-fade-up">
       <PageHeader
         title="Model catalog"
-        description="The pretrained image restoration model available in this deployment."
+        description="Choose a checkpoint tuned for different haze conditions and compare model outputs in Studio."
       />
 
       {/* Service banner */}
@@ -40,7 +40,7 @@ export default function ModelsPage() {
             Inference service online
           </span>
           <span className="font-mono text-xs text-base-content/50">
-            uptime {formatUptime(health!.uptimeSeconds)} · default {health!.model} · {health!.defaultSize}px
+            uptime {formatUptime(health!.uptimeSeconds)} · default {health!.model} · {health!.nativeResolution ? "native scale" : `${health!.defaultSize}px`}
           </span>
         </div>
       ) : (
@@ -70,7 +70,7 @@ export default function ModelsPage() {
             {models.map((model) => (
               <li key={model.name} className="px-5 py-5 sm:px-6">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <h3 className="text-sm font-semibold">{model.name.toUpperCase()}</h3>
+                  <h3 className="text-sm font-semibold">{model.displayName ?? model.name.toUpperCase()}</h3>
                   <WeightsBadge state={model.weightsState} />
                   {model.openSource && <span className="rounded-full bg-base-200 px-2 py-0.5 text-[0.6875rem] text-base-content/60">Open source</span>}
                 </div>
@@ -81,7 +81,7 @@ export default function ModelsPage() {
                 <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1 font-mono text-xs text-base-content/50">
                   <div className="flex gap-1.5">
                     <dt className="text-base-content/40">input size</dt>
-                    <dd>{model.nativeResolution ? "native resolution" : `${model.defaultSize}px`}</dd>
+                    <dd>{model.nativeResolution ? `native scale${model.maxSide ? ` · ${model.maxSide}px cap` : ""}` : `${model.defaultSize}px`}</dd>
                   </div>
                   <div className="flex gap-1.5">
                     <dt className="text-base-content/40">divisible by</dt>
@@ -99,9 +99,11 @@ export default function ModelsPage() {
                     <dt className="text-base-content/40">task</dt>
                     <dd>{model.task ?? "Image dehazing"}</dd>
                   </div>
+                  {model.trainedOn && <div className="flex gap-1.5"><dt className="text-base-content/40">trained on</dt><dd>{model.trainedOn}</dd></div>}
+                  {model.license && <div className="flex gap-1.5"><dt className="text-base-content/40">license</dt><dd>{model.license}</dd></div>}
                 </dl>
                 {model.available === false && (
-                  <p className="mt-3 text-xs text-warning">Pretrained checkpoint unavailable. Place the authors’ DRNet_3tasks.pth in ML/checkpoints and restart the inference service.</p>
+                  <p className="mt-3 text-xs text-warning">{model.installHint ?? "Pretrained checkpoint unavailable."}</p>
                 )}
               </li>
             ))}
@@ -116,12 +118,8 @@ export default function ModelsPage() {
       </section>
 
       <p className="mt-6 max-w-2xl text-xs leading-relaxed text-base-content/45">
-        DRNet is based on the authors’ implementation in{" "}
-        <span className="font-mono">ML/third_party/DRNet-AiO</span> and served behind the
-        authenticated{" "}
-        <span className="font-mono">POST /api/v1/ml/dehaze</span> endpoint. The
-        weights badge reflects the checkpoint configured on the server via{" "}
-        <span className="font-mono">ML_MODEL_PATH</span>.
+        Models are loaded lazily by the inference service and use model-specific preprocessing and checkpoints. Benchmark datasets are stored outside Git under{" "}
+        <span className="font-mono">ML/data</span>; run the evaluation command to compare paired-image PSNR and SSIM.
       </p>
     </div>
   );

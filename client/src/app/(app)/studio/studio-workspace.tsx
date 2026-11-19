@@ -21,7 +21,7 @@ export default function StudioWorkspace() {
 
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [modelId, setModelId] = useState("drnet");
+  const [modelId, setModelId] = useState("dehazeformer_b_rice1");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<DehazeResult | null>(null);
@@ -91,7 +91,7 @@ export default function StudioWorkspace() {
     <div className="animate-fade-up">
       <PageHeader
         title="De-hazing Studio"
-        description="Restore a hazy photograph with the pretrained DRNet model, then compare and download the result."
+        description="Choose a pretrained dehazing model, compare its result, and download the restored image."
       />
 
       <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
@@ -142,9 +142,11 @@ export default function StudioWorkspace() {
           <div className="my-5 h-px bg-base-300/70" />
 
           <div className="rounded-field bg-base-200/60 px-3.5 py-3">
-            <p className="text-xs font-medium">Native image resolution</p>
+            <p className="text-xs font-medium">{selectedModel?.displayName ?? "Selected model"}</p>
             <p className="mt-1 text-xs leading-relaxed text-base-content/55">
-              DRNet keeps the uploaded detail and pads only to its 64px processing window.
+              {selectedModel?.nativeResolution
+                ? `Preserves image dimensions${selectedModel.maxSide ? ` up to a ${selectedModel.maxSide}px long side` : ""}; model-specific padding is applied at inference.`
+                : "Uses the model's configured processing size."}
             </p>
           </div>
 
@@ -158,7 +160,7 @@ export default function StudioWorkspace() {
             {busy ? "De-hazing…" : "De-haze image"}
           </button>
           <p className="mt-2.5 text-center text-xs text-base-content/45">
-            DRNet runs server-side · CUDA is used when available, with CPU fallback
+            {selectedModel?.displayName ?? "The selected model"} runs server-side · CUDA when available, CPU fallback otherwise
           </p>
         </section>
 
@@ -214,7 +216,7 @@ export default function StudioWorkspace() {
               </div>
 
               <p className="text-xs text-base-content/45">
-                DRNet · Prior-Guided Dynamic Reparameterization · pretrained open-source model
+                {selectedModel?.architecture ?? result.model} · {selectedModel?.trainedOn ?? "pretrained weights"}
               </p>
 
               <div className="flex flex-wrap items-center gap-3">

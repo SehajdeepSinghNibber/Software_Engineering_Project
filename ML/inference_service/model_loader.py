@@ -182,6 +182,15 @@ for _model_id, _spec in DEHAZEFORMER_SPECS.items():
         "open_source": _spec.license == "MIT",
     }
 
+_catalog_order = (
+    "dehazeformer_b_rice1",
+    "dehazeformer_b_outdoor",
+    "aodnet",
+    "lightdehazenet",
+    "drnet",
+)
+MODEL_REGISTRY = {name: MODEL_REGISTRY[name] for name in _catalog_order if name in MODEL_REGISTRY}
+
 
 # ---------------------------------------------------------------------------
 # Loading / caching
@@ -392,6 +401,7 @@ def list_models() -> list[dict[str, Any]]:
                 "trainedOn": info.get("trained_on"),
                 "defaultSize": info["default_size"],
                 "nativeResolution": info.get("native_resolution", False),
+                "maxSide": info.get("max_side"),
                 "divisible": info["divisible"],
                 "norm": settings.input_norm
                 if settings.input_norm in ("01", "11")

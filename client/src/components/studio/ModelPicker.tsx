@@ -2,13 +2,13 @@
 
 import type { ModelInfo } from "@/lib/types";
 
-/** Fallback mirrors the single supported, pretrained model on the server. */
+/** Fallback mirrors the server's DRNet entry when its live catalog is offline. */
 const FALLBACK_MODELS: ModelInfo[] = [
   {
     name: "drnet",
     description: "Prior-Guided Dynamic Reparameterization Network using the authors’ pretrained 3-task dehazing checkpoint.",
     architecture: "Prior-Guided Dynamic Reparameterization Network",
-    defaultSize: 0,
+    defaultSize: null,
     divisible: 64,
     norm: "01",
     weightsState: "missing",
@@ -89,7 +89,7 @@ export function ModelPicker({
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="text-sm font-semibold">{model.name.toUpperCase()}</span>
+                    <span className="text-sm font-semibold">{model.displayName ?? model.name.toUpperCase()}</span>
                     <WeightsBadge state={model.weightsState} />
                     {model.openSource && <span className="rounded-full bg-base-200 px-2 py-0.5 text-[0.6875rem] text-base-content/60">Open source</span>}
                   </span>
@@ -100,11 +100,11 @@ export function ModelPicker({
                     {model.description}
                   </span>
                   <span className="mt-1.5 block font-mono text-[0.6875rem] text-base-content/45">
-                    dehazing · {model.nativeResolution ? "native resolution" : `default ${model.defaultSize}px`} · {model.device === "cuda" ? "CUDA" : "CPU"} fallback available
+                    dehazing · {model.nativeResolution ? `native scale${model.maxSide ? ` · cap ${model.maxSide}px` : ""}` : `default ${model.defaultSize}px`} · {model.trainedOn ?? "research checkpoint"} · {model.device === "cuda" ? "CUDA" : "CPU"}
                   </span>
                   {model.available === false && (
                     <span className="mt-2 block text-xs font-medium text-warning">
-                      The pretrained checkpoint is missing on this server. Add DRNet_3tasks.pth to ML/checkpoints to enable inference.
+                      {model.installHint ?? "The pretrained checkpoint is missing on this server."}
                     </span>
                   )}
                 </span>

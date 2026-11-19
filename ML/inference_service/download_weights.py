@@ -41,6 +41,15 @@ AUXILIARY_SOURCES = {
     },
 }
 
+# Keep --all aligned with models that have both an implemented architecture and
+# a verified checkpoint installer. Other research weights may be documented in
+# specs.py without being exposed as installable or selectable models yet.
+INSTALLABLE_MODELS = (
+    "dehazeformer_b_rice1",
+    "dehazeformer_b_outdoor",
+    *AUXILIARY_SOURCES.keys(),
+)
+
 
 def _download(url: str, target: Path) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": "ClearLens-model-installer/1.0"})
@@ -134,10 +143,10 @@ def install_auxiliary(name: str) -> Path:
 
 
 def main() -> None:
-    choices = sorted(set(SPECS) | set(AUXILIARY_SOURCES))
+    choices = sorted(INSTALLABLE_MODELS)
     parser = argparse.ArgumentParser(description="Download and verify ClearLens dehazing checkpoints.")
-    parser.add_argument("models", nargs="*", choices=choices, help="Model IDs; omit to install all catalog weights.")
-    parser.add_argument("--all", action="store_true", help="Install every configured model checkpoint.")
+    parser.add_argument("models", nargs="*", choices=choices, help="Model IDs; omit to install all supported model weights.")
+    parser.add_argument("--all", action="store_true", help="Install every supported model checkpoint.")
     args = parser.parse_args()
     selected = choices if args.all or not args.models else args.models
 
