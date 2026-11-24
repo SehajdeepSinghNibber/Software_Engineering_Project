@@ -1,4 +1,4 @@
-/** Shared domain types mirroring the Fastify backend contracts. */
+﻿/** Shared domain types mirroring the Fastify backend contracts. */
 
 export type User = {
   _id: string;
@@ -41,17 +41,25 @@ export type ServiceHealth = {
   models: string[];
 };
 
+export type DehazeMetrics = {
+  psnr?: number;
+  ssim?: number;
+  lpips?: number;
+};
+
 /** POST /api/v1/ml/dehaze -> data. */
 export type DehazeResult = {
   contentType: string;
   /** PNG as a data URL (data:image/png;base64,...). */
   outputImage: string;
   model: string;
+  dataset?: string;
   inputSize: number;
   outputWidth: number;
   outputHeight: number;
   inferenceMs: number;
   weightsState: string;
+  metrics?: DehazeMetrics;
   processedAt: string;
 };
 

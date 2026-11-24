@@ -1,6 +1,6 @@
 /**
  * HTTP client for the Python de-hazing inference service
- * (see ML/inference_service).  Keeps every concern about talking to the ML
+ * (see ML/inference_service). Keeps every concern about talking to the ML
  * backend inside this module so controllers stay clean and testable.
  */
 import config from "../config/config.js";
@@ -102,14 +102,15 @@ export const listModels = async () => {
  * Send an image to the inference service for de-hazing.
  *
  * @param {object} args
- * @param {Buffer} args.buffer   - raw image bytes
- * @param {string} [args.filename] - original file name
- * @param {string} [args.contentType] - original MIME type
- * @param {string} [args.model]  - model id
- * @param {number} [args.size]   - optional square input size
+ * @param {Buffer} args.buffer       - raw image bytes
+ * @param {string} [args.filename]   - original file name
+ * @param {string} [args.contentType]- original MIME type
+ * @param {string} [args.model]      - model id
+ * @param {string} [args.dataset]    - dataset id (sots, rice1, o-haze, nh-haze)
+ * @param {number} [args.size]       - optional square input size
  * @returns {Promise<object>} result metadata plus the de-hazed PNG buffer
  */
-export const dehazeImage = async ({ buffer, filename, contentType, model, size }) => {
+export const dehazeImage = async ({ buffer, filename, contentType, model, dataset, size }) => {
     if (!buffer || buffer.length === 0) {
         throw new MLServiceError("Cannot send an empty image to the ML service", 400);
     }
@@ -121,6 +122,9 @@ export const dehazeImage = async ({ buffer, filename, contentType, model, size }
     );
     form.append("image", blob, filename || "upload.png");
     form.append("model", model || config.ML_DEFAULT_MODEL);
+    if (dataset) {
+        form.append("dataset", dataset);
+    }
     if (size) {
         form.append("size", String(size));
     }
@@ -142,14 +146,25 @@ export const dehazeImage = async ({ buffer, filename, contentType, model, size }
         );
     }
 
+    const psnrStr = response.headers.get("x-psnr");
+    const ssimStr = response.headers.get("x-ssim");
+    const lpipsStr = response.headers.get("x-lpips");
+
+    const metrics = {};
+    if (psnrStr && !isNaN(Number(psnrStr))) metrics.psnr = Number(psnrStr);
+    if (ssimStr && !isNaN(Number(ssimStr))) metrics.ssim = Number(ssimStr);
+    if (lpipsStr && !isNaN(Number(lpipsStr))) metrics.lpips = Number(lpipsStr);
+
     return {
         buffer: pngBuffer,
         contentType: "image/png",
         model: response.headers.get("x-model") || model || config.ML_DEFAULT_MODEL,
+        dataset: response.headers.get("x-dataset") || dataset || "sots",
         inputSize: Number(response.headers.get("x-input-size") || size || 0),
         outputWidth: Number(response.headers.get("x-output-width") || 0),
         outputHeight: Number(response.headers.get("x-output-height") || 0),
         inferenceMs: Number(response.headers.get("x-inference-ms") || 0),
         weightsState: response.headers.get("x-weights-state") || "unknown",
+        metrics,
     };
 };

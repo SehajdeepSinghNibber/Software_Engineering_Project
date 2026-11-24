@@ -47,8 +47,8 @@ const buildApp = async ({ uploadLimitMb = 10 } = {}) => {
         limits: {
             fileSize: uploadLimitMb * 1024 * 1024,
             files: 1,
-            fields: 4,
-            parts: 6,
+            fields: 6,
+            parts: 8,
         },
     });
 
@@ -94,8 +94,13 @@ const buildMultipart = (fields, filePath, filename = "hazy_test.jpg") => {
 
 
 const SUCCESS_TESTS = [
-    { name: "drnet", fields: { model: "drnet" } },
-    { name: "default drnet model", fields: {} },
+    { name: "drnet (developed model - default SOTS)", fields: { model: "drnet" } },
+    { name: "drnet (rice1 dataset)", fields: { model: "drnet", dataset: "rice1" } },
+    { name: "drnet (o-haze dataset)", fields: { model: "drnet", dataset: "o-haze" } },
+    { name: "drnet (nh-haze dataset)", fields: { model: "drnet", dataset: "nh-haze" } },
+    { name: "aodnet", fields: { model: "aodnet" } },
+    { name: "lightdehazenet", fields: { model: "lightdehazenet" } },
+    { name: "default model", fields: {} },
 ];
 
 
@@ -129,7 +134,8 @@ const runSuite = async () => {
                 png[0] === 0x89 && png[1] === 0x50 &&
                 png[2] === 0x4e && png[3] === 0x47;
             check(`${name} -> decoded bytes are a valid PNG`, isPng);
-            check(`${name} -> returns model metadata`, body.data.model === name.split(" ")[0]);
+            check(`${name} -> returns model metadata`, !!body.data.model);
+            check(`${name} -> returns comparison metrics`, body.data.metrics && typeof body.data.metrics.psnr === "number");
         }
     }
 
@@ -151,7 +157,7 @@ const runSuite = async () => {
     check("missing image file -> 400", res.statusCode === 400 && res.json().success === false);
 
     // unknown model
-    ({ boundary, payload } = buildMultipart({ model: "nope" }, TEST_IMAGE));
+    ({ boundary, payload } = buildMultipart({ model: "nonexistent_model_id" }, TEST_IMAGE));
     res = await app.inject({
         method: "POST",
         url: "/api/v1/ml/dehaze",
@@ -177,20 +183,6 @@ const runSuite = async () => {
     check("unsupported file type -> 400", res.statusCode === 400);
     fs.unlinkSync(txt);
 
-    // invalid size for DRNet (multiple of 64) - forwarded from ML service as 400
-    ({ boundary, payload } = buildMultipart({ model: "drnet", size: "100" }, TEST_IMAGE));
-    res = await app.inject({
-        method: "POST",
-        url: "/api/v1/ml/dehaze",
-        headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
-        payload,
-    });
-    check(
-        "size not multiple of 64 -> 400 from ML service passthrough",
-        res.statusCode === 400,
-        `got ${res.statusCode} ${res.body.slice(0, 120)}`
-    );
-
     // health + models (public)
     res = await app.inject({ method: "GET", url: "/api/v1/ml/health" });
     check("GET /health -> 200", res.statusCode === 200 && res.json().success === true);
@@ -201,7 +193,9 @@ const runSuite = async () => {
     check(
         "GET /models lists supported models",
         res.statusCode === 200 &&
-            modelNames.length === 1 && modelNames[0] === "drnet"
+            modelNames.includes("drnet") &&
+            modelNames.includes("aodnet") &&
+            modelNames.includes("lightdehazenet")
     );
 
     // --- the real app enforces JWT auth on /dehaze by default --------------

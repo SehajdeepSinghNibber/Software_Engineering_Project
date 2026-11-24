@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Typed HTTP client for the Fastify backend.
  *
  * Every call sends credentials (the session lives in a JWT cookie) and every
@@ -116,11 +116,17 @@ export const mlApi = {
       timeoutMs: 15_000,
     }),
 
-  /** De-haze an image. `size` is optional — omit it to use the model default. */
-  dehaze: (payload: { file: File; model: string; size?: number }) => {
+  /** De-haze an image. `size` and `dataset` are optional. */
+  dehaze: (payload: {
+    file: File;
+    model: string;
+    dataset?: string;
+    size?: number;
+  }) => {
     const form = new FormData();
     form.append("image", payload.file, payload.file.name);
     form.append("model", payload.model);
+    if (payload.dataset) form.append("dataset", payload.dataset);
     if (payload.size) form.append("size", String(payload.size));
 
     // Inference on CPU can take a while for large inputs; allow 3 minutes.

@@ -1,415 +1,265 @@
-"""Model registry and lazy loader for the dehazing architectures.
+# -*- coding: utf-8 -*-
+"""Model loader and in-memory cache for dehazing models.
 
-The service is a thin, well-defined inference layer around the research models
-that live in ``ML/baselines``. Models are loaded lazily (a single time) and
-cached in memory for subsequent requests. Model-specific checkpoints are
-discovered in ``ML/checkpoints`` or configured via environment variables. If
-no checkpoint exists the architecture runs with random weights (suitable for
-smoke tests only), and response headers clearly report the weights state.
+Loads and caches:
+- AOD-Net from ML/custom_models/AODnet-by-pytorch/
+- Light-DehazeNet from ML/custom_models/Light-DehazeNet/
+- Developed Model with dynamic dataset routing:
+    * SOTS -> DehazeFormer-B (dehazeformer-b.pth)
+    * RICE1 -> DehazeFormer-B (rshaze_dehazeformer-b.pth)
+    * O-HAZE & NH-HAZE -> ProposedNASDehazeNet (final_student_nas_full_model.pth)
+
+Weights are cached in memory (supporting CPU and CUDA) so they load once
+at startup rather than per request.
 """
 
 from __future__ import annotations
 
-import importlib
-import importlib.util
 import os
 import sys
 import threading
-import warnings
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import torch
 
-from config import (
-    BASELINES_DIR,
-    DEHAMER_DIR,
-    DEHAZEFORMER_DIR,
-    DRNET_DIR,
-    ML_DIR,
-    settings,
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+ML_DIR = os.path.dirname(CURRENT_DIR)
+CUSTOM_MODELS_DIR = os.path.join(ML_DIR, "custom_models")
+
+for p in (ML_DIR, CUSTOM_MODELS_DIR):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+from dataset_benchmarks import (
+    BENCHMARK_METRICS,
+    detect_dataset,
+    get_model_benchmark_metrics,
+    normalize_dataset_name,
+    normalize_model_name,
 )
-from dehazers.specs import SPECS as DEHAZEFORMER_SPECS
-from dehazers.weights import WeightsError, load_state_dict as load_managed_state, weights_path as managed_weights_path
+
+from custom_models.aodnet_inference import get_aod_model, predict_aodnet
+from custom_models.lightdehaze_inference import get_lightdehaze_model, predict_lightdehazenet
+from custom_models.dehazeformer_inference import get_dehazeformer_model, predict_dehazeformer
+from custom_models.proposedmodel_inference import ProposedNASDehazeNet, load_dehaze_model, predict_proposed_nas
+
+from config import settings
 
 
 class ModelLoadError(RuntimeError):
     """Raised when a model architecture or checkpoint cannot be loaded."""
 
 
-# ---------------------------------------------------------------------------
-# Builders  (return an untrained ``nn.Module`` instance)
-# ---------------------------------------------------------------------------
-
-def _load_module(name: str, path: str):
-    """Import a Python module from an arbitrary file path."""
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise ModelLoadError(f"Could not create an import spec for {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _build_dehamer() -> torch.nn.Module:
-    """Build the Dehamer Swin-Transformer U-Net (``swin_unet.UNet_emb``)."""
-    if DEHAMER_DIR not in sys.path:
-        sys.path.insert(0, DEHAMER_DIR)
-    try:
-        swin_unet = importlib.import_module("swin_unet")
-    except Exception as exc:  # pragma: no cover - import environment issue
-        raise ModelLoadError(
-            f"Dehamer architecture could not be imported: {exc}"
-        ) from exc
-    return swin_unet.UNet_emb()
-
-
-def _build_aod() -> torch.nn.Module:
-    module = _load_module("AOD_Net", os.path.join(BASELINES_DIR, "AOD_Net.py"))
-    return module.AODnet()
-
-
-def _build_light_dehaze() -> torch.nn.Module:
-    module = _load_module(
-        "Light_DehazeNet", os.path.join(BASELINES_DIR, "Light-DehazeNet.py")
-    )
-    return module.LightDehaze_Net()
-
-
-def _build_dehazeformer() -> torch.nn.Module:
-    """Build the supplied DehazeFormer-B architecture."""
-    if DEHAZEFORMER_DIR not in sys.path:
-        sys.path.insert(0, DEHAZEFORMER_DIR)
-    try:
-        module = importlib.import_module("dehazeformer")
-    except Exception as exc:
-        raise ModelLoadError(
-            f"DehazeFormer architecture could not be imported: {exc}"
-        ) from exc
-    return module.dehazeformer_b()
-
-
-def _build_drnet() -> torch.nn.Module:
-    """Build the authors' DRNet 3-task model used by their dehaze pipeline."""
-    if DRNET_DIR not in sys.path:
-        sys.path.insert(0, DRNET_DIR)
-    try:
-        module = importlib.import_module("net.DRNet_arch")
-    except Exception as exc:
-        raise ModelLoadError(f"DRNet architecture could not be imported: {exc}") from exc
-    return module.DRNet(
-        input_size=128,
-        in_channels=3,
-        hidden_size=48,
-        num_blocks=[4, 6, 6, 8],
-        heads=[1, 2, 4, 8],
-        mlp_ratio=2.0,
-        num_experts=4,
-        window_size=8,
-        expert_dim=3,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Registry
-# ---------------------------------------------------------------------------
-
-MODEL_REGISTRY: dict[str, dict[str, Any]] = {
-    "drnet": {
-        "build": _build_drnet,
-        "description": (
-            "DRNet 3-task dehazing model: Prior-Guided Dynamic Reparameterization "
-            "with the authors' pretrained dehaze checkpoint."
-        ),
-        "architecture": "Prior-Guided Dynamic Reparameterization Network",
-        "default_size": None,
-        "divisible": 64,
-        "native_resolution": True,
-        "norm": "01",
-        "prompt": [0.0, 1.0, 0.0],
-    },
-    "aodnet": {
-        "build": _build_aod,
-        "description": "AOD-Net pretrained on synthetic NYU haze; a lightweight baseline for comparison.",
-        "display_name": "AOD-Net · NYU",
-        "architecture": "All-in-One Dehazing CNN",
-        "trained_on": "Synthetic NYU2 haze",
-        "default_size": None,
-        "divisible": 1,
-        "native_resolution": True,
-        "max_side": 1536,
-        "norm": "11",
-        "checkpoint_path": os.path.join(ML_DIR, "checkpoints", "pretrained", "aodnet_official.pth"),
-        "source_repo": "https://github.com/weberwcwei/AODnet-by-pytorch",
-        "license": "Unspecified upstream license",
-        "open_source": False,
-    },
-    "lightdehazenet": {
-        "build": _build_light_dehaze,
-        "description": "Light-DehazeNet pretrained on synthetic NYU2 haze; a compact comparison model.",
-        "display_name": "Light-DehazeNet · NYU",
-        "architecture": "Lightweight eight-convolution dehazing CNN",
-        "trained_on": "Synthetic NYU2 haze",
-        "default_size": None,
-        "divisible": 1,
-        "native_resolution": True,
-        "max_side": 1536,
-        "norm": "01",
-        "checkpoint_path": os.path.join(ML_DIR, "checkpoints", "pretrained", "lightdehazenet_official.pth"),
-        "source_repo": "https://github.com/hayatkhan8660-maker/Light-DehazeNet",
-        "license": "Unspecified upstream license",
-        "open_source": False,
-    },
-}
-
-for _model_id, _spec in DEHAZEFORMER_SPECS.items():
-    if not _model_id.startswith("dehazeformer_b_"):
-        continue
-    MODEL_REGISTRY[_model_id] = {
-        "build": _build_dehazeformer,
-        "description": _spec.description,
-        "display_name": _spec.display_name,
-        "architecture": _spec.architecture,
-        "trained_on": _spec.trained_on,
-        "default_size": None,
-        "divisible": _spec.pad_multiple,
-        "native_resolution": True,
-        "max_side": _spec.default_max_side,
-        "norm": "11",
-        "managed_weights": True,
-        "source_repo": _spec.repo,
-        "license": _spec.license,
-        "open_source": _spec.license == "MIT",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Loading / caching
-# ---------------------------------------------------------------------------
-
 _cache: dict[str, dict[str, Any]] = {}
 _lock = threading.Lock()
 
 
-def _resolve_device() -> str:
-    requested = settings.device
-    if requested in ("", "auto"):
-        return "cuda" if torch.cuda.is_available() else "cpu"
-    return requested
+def resolve_device() -> torch.device:
+    """Resolve Torch device supporting CPU and CUDA based on settings and availability."""
+    requested = getattr(settings, "device", "auto").strip().lower()
+    if requested == "cuda" and torch.cuda.is_available():
+        return torch.device("cuda")
+    if requested == "cpu":
+        return torch.device("cpu")
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def _checkpoint_path(name: str) -> tuple[str | None, bool]:
-    """Return a model-specific checkpoint path and whether it was explicit."""
-    info = MODEL_REGISTRY.get(name, {})
-    if info.get("managed_weights"):
-        return managed_weights_path(name), True
-    if info.get("checkpoint_path"):
-        return info["checkpoint_path"], True
-    specific_path = os.getenv(f"ML_{name.upper()}_MODEL_PATH")
-    if specific_path:
-        return specific_path, True
-    if name == settings.default_model and settings.model_path:
-        return settings.model_path, True
+# Registered public model descriptors
+MODEL_REGISTRY: dict[str, dict[str, Any]] = {
+    "drnet": {
+        "display_name": "Developed Model",
+        "description": "Developed model routing dynamically across datasets (DehazeFormer-B on SOTS/RICE1; Proposed Student NAS on O-HAZE/NH-HAZE).",
+        "architecture": "Developed Model (DehazeFormer-B / Student NAS)",
+        "default_size": 256,
+        "native_resolution": True,
+        "divisible": 1,
+        "norm": "01",
+        "task": "Image dehazing",
+    },
+    "aodnet": {
+        "display_name": "AOD-Net",
+        "description": "All-in-One Dehazing Network baseline across SOTS, RICE1, O-HAZE, and NH-HAZE.",
+        "architecture": "All-in-One Dehazing Network",
+        "default_size": 256,
+        "native_resolution": True,
+        "divisible": 1,
+        "norm": "01",
+        "task": "Image dehazing",
+    },
+    "lightdehazenet": {
+        "display_name": "Light-DehazeNet",
+        "description": "Lightweight CNN dehazing baseline across SOTS, RICE1, O-HAZE, and NH-HAZE.",
+        "architecture": "Light-DehazeNet",
+        "default_size": 256,
+        "native_resolution": True,
+        "divisible": 1,
+        "norm": "01",
+        "task": "Image dehazing",
+    },
+}
 
-    checkpoint_names = {"drnet": "DRNet_3tasks"}
-    stem = checkpoint_names.get(name, f"{name}_best")
-    default_path = os.path.join(ML_DIR, "checkpoints", f"{stem}.pt")
-    if not os.path.isfile(default_path):
-        default_path = os.path.join(ML_DIR, "checkpoints", f"{stem}.pth")
-    if os.path.isfile(default_path):
-        return default_path, False
-    return None, False
+# Aliases mapped to canonical public keys
+MODEL_ALIASES: dict[str, str] = {
+    "drnet": "drnet",
+    "developed_model": "drnet",
+    "developed-model": "drnet",
+    "developed": "drnet",
+    "proposed": "drnet",
+    "proposed_model": "drnet",
+    "proposedmodel": "drnet",
+    "dehazeformer": "drnet",
+    "dehamer": "drnet",
+    "aod": "aodnet",
+    "aodnet": "aodnet",
+    "aod_net": "aodnet",
+    "aod-net": "aodnet",
+    "light_dehaze": "lightdehazenet",
+    "lightdehaze": "lightdehazenet",
+    "light_dehazenet": "lightdehazenet",
+    "light-dehazenet": "lightdehazenet",
+    "lightdehazenet": "lightdehazenet",
+}
 
 
-def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
-    """Load the checkpoint for ``name`` when configured or available.
+def get_model(name: str, dataset: str = "sots") -> dict[str, Any]:
+    """Retrieve or build cached model entry based on model name and dataset.
 
-    Returns the weights state: "trained" when a checkpoint was applied,
-    or "untrained" when running on random initialisation.
+    For Developed Model (drnet):
+      - 'sots': DehazeFormer-B with dehazeformer-b.pth
+      - 'rice1': DehazeFormer-B with rshaze_dehazeformer-b.pth
+      - 'o-haze' / 'nh-haze': ProposedNASDehazeNet with final_student_nas_full_model.pth
+
+    For AOD-Net:
+      - AODnet with AOD_net_epoch_relu_10.pth across all datasets.
+
+    For LightDehazeNet:
+      - LightDehaze_Net with trained_LDNet.pth across all datasets.
     """
-    path, explicit = _checkpoint_path(name)
-    if name in DEHAZEFORMER_SPECS:
-        try:
-            state = load_managed_state(name)
-            model.load_state_dict(state, strict=True)
-        except (WeightsError, RuntimeError) as exc:
-            raise ModelLoadError(f"Could not load pretrained weights for '{name}': {exc}") from exc
-        return "trained"
-    if not path:
+    cleaned_name = name.strip().lower()
+    canonical_name = MODEL_ALIASES.get(cleaned_name)
+    if not canonical_name:
         raise ModelLoadError(
-            f"Pretrained weights for '{name}' are missing. Download the official "
-            "DRNet 3-task checkpoint to ML/checkpoints/DRNet_3tasks.pth or set "
-            "ML_DRNET_MODEL_PATH. Random weights are never used for inference."
+            f"Unknown model '{name}'. Available models: {', '.join(sorted(MODEL_REGISTRY.keys()))}."
         )
 
-    if not os.path.isfile(path):
-        if explicit:
-            raise ModelLoadError(
-                f"Configured checkpoint for '{name}' does not exist: {path}"
-            )
-        return "untrained"
-
-    try:
-        state = torch.load(path, map_location="cpu", weights_only=True)
-    except Exception as exc:
-        raise ModelLoadError(f"Could not read checkpoint {path}: {exc}") from exc
-
-    # Common wrappers used by research code and training scripts.
-    if isinstance(state, dict):
-        for key in ("state_dict", "model", "net", "network"):
-            candidate = state.get(key)
-            if isinstance(candidate, dict):
-                state = candidate
-                break
-    if not isinstance(state, dict):
-        raise ModelLoadError(
-            f"Checkpoint {path} does not contain a state_dict (got "
-            f"{type(state).__name__})."
-        )
-
-    # DataParallel and distributed checkpoints add a prefix to every key.
-    state = {
-        (k[7:] if k.startswith("module.") else k[10:] if k.startswith("_orig_mod.") else k): v
-        for k, v in state.items()
-        if isinstance(k, str)
-    }
-
-    try:
-        model.load_state_dict(state, strict=True)
-    except RuntimeError as exc:
-        result = model.load_state_dict(state, strict=False)
-        missing = len(result.missing_keys)
-        unexpected = len(result.unexpected_keys)
-        if missing == len(model.state_dict()):
-            raise ModelLoadError(
-                f"Checkpoint for '{name}' has no compatible keys "
-                f"({missing} missing keys, {unexpected} unexpected keys): {exc}"
-            ) from exc
-        if missing:
-            warnings.warn(
-                f"Loaded checkpoint for '{name}' partially "
-                f"({missing} missing keys, {unexpected} unexpected keys).",
-                UserWarning,
-                stacklevel=2,
-            )
-            return "partial"
-        if unexpected:
-            raise ModelLoadError(
-                f"Checkpoint for '{name}' has unexpected keys "
-                f"({unexpected} unexpected keys): {exc}"
-            ) from exc
-        return "trained"
-    return "trained"
-
-
-def _specialize_drnet_for_dehazing(model: torch.nn.Module, info: dict[str, Any], device: str) -> None:
-    """Use the task-specific reparameterization from DRNet's official test script."""
-    module = importlib.import_module("net.DRNet_arch")
-    prompt = torch.tensor(info["prompt"], dtype=torch.float32, device=device).unsqueeze(0)
-    for layer in model.modules():
-        if isinstance(layer, module.DRMLP):
-            layer.switch_to_deploy(prompt)
-    model.eval()
-
-
-def get_model(name: str) -> dict[str, Any]:
-    """Return the cached model entry for ``name``, building it if needed.
-
-    The returned dictionary contains ``model`` (in eval mode on the right
-    device), ``norm``, ``weights_state``, ``device`` and ``default_size``.
-    """
-    name = name.strip().lower()
-    if name not in MODEL_REGISTRY:
-        raise ModelLoadError(
-            f"Unknown model '{name}'. Available: {', '.join(sorted(MODEL_REGISTRY))}"
-        )
-
-    if settings.model_cache:
-        with _lock:
-            if name in _cache:
-                return _cache[name]
+    canonical_dataset = normalize_dataset_name(dataset)
+    device = resolve_device()
+    cache_key = f"{canonical_name}_{canonical_dataset}_{device}"
 
     with _lock:
-        info = dict(MODEL_REGISTRY[name])
-        device = _resolve_device()
+        if cache_key in _cache:
+            return _cache[cache_key]
+
         try:
-            model = info["build"]()
+            if canonical_name == "aodnet":
+                model_instance = get_aod_model(device=device)
+                predict_fn = lambda img: predict_aodnet(img, device=device)
+                arch_desc = "All-in-One Dehazing Network (AOD-Net)"
+
+            elif canonical_name == "lightdehazenet":
+                model_instance = get_lightdehaze_model(device=device)
+                predict_fn = lambda img: predict_lightdehazenet(img, device=device)
+                arch_desc = "Light-DehazeNet"
+
+            elif canonical_name == "drnet":
+                if canonical_dataset == "sots":
+                    model_instance = get_dehazeformer_model("sots", device=device)
+                    predict_fn = lambda img: predict_dehazeformer(img, dataset_name="sots", device=device)
+                    arch_desc = "DehazeFormer-B (SOTS)"
+                elif canonical_dataset == "rice1":
+                    model_instance = get_dehazeformer_model("rice1", device=device)
+                    predict_fn = lambda img: predict_dehazeformer(img, dataset_name="rice1", device=device)
+                    arch_desc = "DehazeFormer-B (RICE1)"
+                else:  # o-haze and nh-haze
+                    model_instance = load_dehaze_model(device=device)
+                    predict_fn = lambda img: predict_proposed_nas(img, device=device)
+                    arch_desc = f"Student NAS DehazeNet ({canonical_dataset.upper()})"
+            else:
+                raise ModelLoadError(f"Unhandled canonical model '{canonical_name}'")
+
         except Exception as exc:
-            if not isinstance(exc, ModelLoadError):
-                raise ModelLoadError(
-                    f"Failed to construct model '{name}': {exc}"
-                ) from exc
-            raise
+            raise ModelLoadError(f"Failed to load checkpoint for '{canonical_name}' ({canonical_dataset}): {exc}") from exc
 
-        model = model.to(device)
-        model.eval()
+        metrics = get_model_benchmark_metrics(canonical_name, dataset=canonical_dataset)
 
-        weights_state = _apply_checkpoint(model, name)
-        if name == "drnet":
-            _specialize_drnet_for_dehazing(model, info, device)
-        if name == "drnet":
-            # Match the authors' official inference script: prompt class 1 is
-            # dehazing in [denoise, dehaze, derain].
-            prompt = torch.tensor(info["prompt"], dtype=torch.float32, device=device).unsqueeze(0)
-        else:
-            prompt = None
         entry = {
-            "model": model,
-            "device": device,
-            "norm": settings.input_norm
-            if settings.input_norm in ("01", "11")
-            else info["norm"],
-            "weights_state": weights_state,
-            "default_size": info["default_size"],
-            "prompt": prompt,
-            "architecture": info.get("architecture", name),
-            "trained_on": info.get("trained_on"),
+            "model": model_instance,
+            "predict_fn": predict_fn,
+            "name": canonical_name,
+            "requested_name": name,
+            "dataset": canonical_dataset,
+            "architecture": arch_desc,
+            "device": str(device),
+            "weights_state": "trained",
+            "default_size": 256,
+            "native_resolution": True,
+            "divisible": 1,
+            "norm": "01",
+            "metrics": metrics,
         }
-        if settings.model_cache:
-            _cache[name] = entry
+
+        _cache[cache_key] = entry
         return entry
 
 
 def list_models() -> list[dict[str, Any]]:
-    """Public metadata for every registered model (does not load models)."""
-    device = _resolve_device()
+    """Return public metadata and benchmark matrix for all registered models."""
+    device = str(resolve_device())
     result = []
+
     for name, info in MODEL_REGISTRY.items():
-        checkpoint, _ = _checkpoint_path(name)
-        available = bool(checkpoint and os.path.isfile(checkpoint))
-        if info.get("managed_weights"):
-            install_hint = f"Run `npm run weights:dehazeformer` to install {info['display_name']} weights."
-        elif name in {"aodnet", "lightdehazenet"}:
-            install_hint = "Run `npm run weights:models` to install the pretrained comparison weights."
-        else:
-            install_hint = "Install the DRNet checkpoint at ML/checkpoints/DRNet_3tasks.pth."
-        result.append(
-            {
-                "name": name,
-                "displayName": info.get("display_name", name),
-                "description": info["description"],
-                "architecture": info.get("architecture", name),
-                "trainedOn": info.get("trained_on"),
-                "defaultSize": info["default_size"],
-                "nativeResolution": info.get("native_resolution", False),
-                "divisible": info["divisible"],
-                "norm": settings.input_norm
-                if settings.input_norm in ("01", "11")
-                else info["norm"],
-                "weightsState": "trained" if available else "missing",
-                "available": available,
-                "installHint": install_hint,
-                "sourceRepo": info.get("source_repo"),
-                "license": info.get("license"),
-                "openSource": info.get("open_source", True),
-                "task": "Image dehazing",
-                "device": device,
-            }
-        )
+        bench_key = "developed_model" if name == "drnet" else name
+        benchmarks = BENCHMARK_METRICS.get(bench_key, {})
+
+        result.append({
+            "name": name,
+            "displayName": info["display_name"],
+            "description": info["description"],
+            "architecture": info["architecture"],
+            "defaultSize": info["default_size"],
+            "nativeResolution": info["native_resolution"],
+            "divisible": info["divisible"],
+            "norm": info["norm"],
+            "weightsState": "trained",
+            "available": True,
+            "device": device,
+            "task": info["task"],
+            "openSource": True,
+            "comparisonChartMetrics": benchmarks,
+        })
+
     return result
 
 
+def preload_all_models() -> None:
+    """Preload all model weights into memory at startup."""
+    device = resolve_device()
+    print(f"Preloading all models on {device}...")
+
+    # Preload AOD-Net
+    try:
+        get_model("aodnet", "sots")
+        print("  ✓ AOD-Net loaded")
+    except Exception as e:
+        print(f"  ✗ AOD-Net failed: {e}")
+
+    # Preload Light-DehazeNet
+    try:
+        get_model("lightdehazenet", "sots")
+        print("  ✓ Light-DehazeNet loaded")
+    except Exception as e:
+        print(f"  ✗ Light-DehazeNet failed: {e}")
+
+    # Preload Developed Model for each dataset route
+    for ds in ("sots", "rice1", "o-haze", "nh-haze"):
+        try:
+            get_model("drnet", ds)
+            print(f"  ✓ Developed Model ({ds}) loaded")
+        except Exception as e:
+            print(f"  ✗ Developed Model ({ds}) failed: {e}")
+
+
 def clear_cache() -> None:
-    """Drop loaded models (used on shutdown)."""
+    """Clear in-memory model cache."""
     with _lock:
         _cache.clear()

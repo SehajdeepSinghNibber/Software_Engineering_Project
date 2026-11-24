@@ -27,6 +27,32 @@ const ALLOWED_EXTENSIONS = new Set([
 
 const ALLOWED_MODELS = new Set([
     "drnet",
+    "developed_model",
+    "developed-model",
+    "developed",
+    "proposed",
+    "proposed_model",
+    "dehazeformer",
+    "dehamer",
+    "aodnet",
+    "aod",
+    "aod_net",
+    "aod-net",
+    "lightdehazenet",
+    "light_dehaze",
+    "lightdehaze",
+    "light_dehazenet",
+    "light-dehazenet",
+]);
+
+const ALLOWED_DATASETS = new Set([
+    "sots",
+    "rice1",
+    "rice",
+    "o-haze",
+    "ohaze",
+    "nh-haze",
+    "nhhaze",
 ]);
 
 
@@ -51,7 +77,7 @@ const assertImageFile = (file) => {
 
 /** Parse and validate optional form fields sent alongside the image. */
 const parseOptions = (values) => {
-    const options = { model: null, size: null };
+    const options = { model: null, size: null, dataset: null };
 
     const model = values?.model?.value?.trim().toLowerCase();
     if (model) {
@@ -61,6 +87,16 @@ const parseOptions = (values) => {
             );
         }
         options.model = model;
+    }
+
+    const dataset = values?.dataset?.value?.trim().toLowerCase();
+    if (dataset) {
+        if (!ALLOWED_DATASETS.has(dataset)) {
+            throw new ValidationError(
+                `Unknown dataset "${dataset}". Supported datasets: sots, rice1, o-haze, nh-haze.`
+            );
+        }
+        options.dataset = dataset;
     }
 
     const size = values?.size?.value?.trim();
@@ -92,9 +128,10 @@ const sendError = (reply, statusCode, message, extra = {}) => {
 /**
  * POST /api/v1/ml/dehaze
  * Body: multipart/form-data
- *   - image (file, required)  : hazy image (JPEG/PNG/WebP/BMP/TIFF)
- *   - model (string, optional): drnet (the official pretrained dehazing model)
- *   - size  (int, optional)   : square input size, 64 - 4096
+ *   - image   (file, required)  : hazy image (JPEG/PNG/WebP/BMP/TIFF)
+ *   - model   (string, optional): drnet / aodnet / lightdehazenet
+ *   - dataset (string, optional): sots / rice1 / o-haze / nh-haze
+ *   - size    (int, optional)   : square input size, 64 - 4096
  */
 export const dehaze = async (request, reply) => {
     let saved = null;
@@ -103,8 +140,8 @@ export const dehaze = async (request, reply) => {
             limits: {
                 fileSize: Number(config.ML_MAX_FILE_SIZE_MB || 10) * 1024 * 1024,
                 files: 1,
-                fields: 4,
-                parts: 6,
+                fields: 6,
+                parts: 8,
                 fieldNameSize: 100,
                 fieldSize: 100,
                 headerPairs: 2000,
@@ -141,13 +178,15 @@ export const dehaze = async (request, reply) => {
             return sendError(reply, 400, "The uploaded image is empty.");
         }
 
-        const { model, size } = parseOptions(saved.values);
+        const { model, size, dataset } = parseOptions(saved.values);
+        const finalDataset = dataset || request.query?.dataset || request.headers["x-dataset"] || null;
 
         const result = await dehazeImage({
             buffer,
             filename: file.filename,
             contentType: file.mimetype,
             model,
+            dataset: finalDataset,
             size,
         });
 
@@ -157,11 +196,13 @@ export const dehaze = async (request, reply) => {
                 contentType: result.contentType,
                 outputImage: `data:${result.contentType};base64,${result.buffer.toString("base64")}`,
                 model: result.model,
+                dataset: result.dataset,
                 inputSize: result.inputSize,
                 outputWidth: result.outputWidth,
                 outputHeight: result.outputHeight,
                 inferenceMs: result.inferenceMs,
                 weightsState: result.weightsState,
+                metrics: result.metrics,
                 processedAt: new Date().toISOString(),
             },
         });

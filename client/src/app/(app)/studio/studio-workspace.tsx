@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 
@@ -15,6 +15,13 @@ import { formatBytes, formatMs } from "@/lib/format";
 import { recordRun } from "@/lib/history";
 import type { DehazeResult } from "@/lib/types";
 
+const DATASET_OPTIONS: { id: string; label: string; hint: string }[] = [
+  { id: "sots", label: "SOTS", hint: "DehazeFormer-B (indoor/outdoor synthetic)" },
+  { id: "rice1", label: "RICE1", hint: "DehazeFormer-B (remote sensing / cloud)" },
+  { id: "o-haze", label: "O-HAZE", hint: "Student NAS (outdoor real haze)" },
+  { id: "nh-haze", label: "NH-HAZE", hint: "Student NAS (non-homogeneous haze)" },
+];
+
 export default function StudioWorkspace() {
   const { refresh } = useSession();
   const { models, loading: modelsLoading } = useModels();
@@ -22,19 +29,18 @@ export default function StudioWorkspace() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [modelId, setModelId] = useState("drnet");
+  const [dataset, setDataset] = useState("sots");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<DehazeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep the object URL lifecycle correct: revoke on replace and unmount.
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
 
-  // Honest elapsed-time indicator while the request is in flight.
   useEffect(() => {
     if (!busy) return;
     const start = performance.now();
@@ -42,13 +48,13 @@ export default function StudioWorkspace() {
     return () => window.clearInterval(id);
   }, [busy]);
 
-  // The stored selection may not exist in the live catalog — fall back to the
-  // first offered model instead of syncing state from an effect.
   const effectiveModelId =
     models && models.length > 0 && !models.some((m) => m.name === modelId)
       ? models[0]!.name
       : modelId;
   const selectedModel = models?.find((m) => m.name === effectiveModelId) ?? null;
+  const activeDatasetHint =
+    DATASET_OPTIONS.find((d) => d.id === dataset)?.hint ?? "";
 
   const onFileSelected = (next: File) => {
     setFile(next);
@@ -70,16 +76,20 @@ export default function StudioWorkspace() {
     setError(null);
     setResult(null);
     try {
-      const { data } = await mlApi.dehaze({ file, model: effectiveModelId });
+      const { data } = await mlApi.dehaze({
+        file,
+        model: effectiveModelId,
+        dataset,
+      });
       setResult(data);
       if (previewUrl) {
         recordRun(data, { name: file.name, previewUrl }).catch(() => {
-          /* history is a convenience — never block the result on it */
+          /* history is a convenience - never block the result on it */
         });
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        void refresh(); // invalidates the session; AuthGate will redirect
+        void refresh();
       }
       setError(err instanceof Error ? err.message : "Something went wrong while de-hazing.");
     } finally {
@@ -91,7 +101,7 @@ export default function StudioWorkspace() {
     <div className="animate-fade-up">
       <PageHeader
         title="De-hazing Studio"
-        description="Restore a hazy photograph with the pretrained DRNet model, then compare and download the result."
+        description="Restore a hazy photograph across models and datasets, then compare and download the result."
       />
 
       <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
@@ -141,12 +151,34 @@ export default function StudioWorkspace() {
 
           <div className="my-5 h-px bg-base-300/70" />
 
-          <div className="rounded-field bg-base-200/60 px-3.5 py-3">
-            <p className="text-xs font-medium">Native image resolution</p>
-            <p className="mt-1 text-xs leading-relaxed text-base-content/55">
-              DRNet keeps the uploaded detail and pads only to its 64px processing window.
-            </p>
-          </div>
+          {/* 3 · Dataset */}
+          <fieldset className="min-w-0">
+            <legend className="mb-2 text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-base-content/50">
+              3 · Dataset
+            </legend>
+            <div className="grid grid-cols-2 gap-2">
+              {DATASET_OPTIONS.map((opt) => {
+                const active = dataset === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setDataset(opt.id)}
+                    className={`rounded-box border px-3 py-2 text-left text-xs font-medium transition-colors ${active
+                        ? "border-success/50 bg-secondary/50 text-base-content"
+                        : "border-base-300 text-base-content/70 hover:border-base-content/25 hover:bg-base-200/50"
+                      } ${busy ? "pointer-events-none opacity-60" : ""}`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            {activeDatasetHint && (
+              <p className="mt-2 text-xs text-base-content/55">{activeDatasetHint}</p>
+            )}
+          </fieldset>
 
           <button
             type="button"
@@ -158,7 +190,7 @@ export default function StudioWorkspace() {
             {busy ? "De-hazing…" : "De-haze image"}
           </button>
           <p className="mt-2.5 text-center text-xs text-base-content/45">
-            DRNet runs server-side · CUDA is used when available, with CPU fallback
+            Runs via backend &amp; inference service · CPU / CUDA
           </p>
         </section>
 
@@ -177,7 +209,9 @@ export default function StudioWorkspace() {
               )}
               <div className="relative z-10 flex flex-col items-center gap-3 rounded-box border border-base-300/70 bg-base-100/90 px-8 py-6 text-center backdrop-blur">
                 <span className="loading loading-spinner text-base-content/70" />
-                <p className="text-sm font-medium">De-hazing with {effectiveModelId}…</p>
+                <p className="text-sm font-medium">
+                  De-hazing with {effectiveModelId} ({dataset})…
+                </p>
                 <p className="font-mono text-xs text-base-content/50">
                   {(elapsed / 1000).toFixed(1)}s elapsed
                 </p>
@@ -192,7 +226,7 @@ export default function StudioWorkspace() {
               </Notice>
               <div className="flex flex-col items-center justify-center rounded-box border border-dashed border-base-300 px-6 py-16 text-center">
                 <p className="text-sm text-base-content/50">
-                  Adjust the input and try again, or choose a different model.
+                  Adjust the input or dataset and try again, or choose a different model.
                 </p>
               </div>
             </div>
@@ -202,8 +236,9 @@ export default function StudioWorkspace() {
             <div className="animate-fade-up space-y-5">
               <CompareSlider before={previewUrl} after={result.outputImage} />
 
-              <div className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-box border border-base-300/70 bg-base-100 px-5 py-4 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-box border border-base-300/70 bg-base-100 px-5 py-4 sm:grid-cols-5">
                 <Stat label="Model" value={result.model} />
+                <Stat label="Dataset" value={result.dataset ?? dataset} />
                 <Stat label="Inference" value={formatMs(result.inferenceMs)} />
                 <Stat label="Input" value={`${result.inputSize} px`} />
                 <Stat
@@ -213,14 +248,10 @@ export default function StudioWorkspace() {
                 />
               </div>
 
-              <p className="text-xs text-base-content/45">
-                DRNet · Prior-Guided Dynamic Reparameterization · pretrained open-source model
-              </p>
-
               <div className="flex flex-wrap items-center gap-3">
                 <a
                   href={result.outputImage}
-                  download={`clearlens-${result.model}-${result.outputWidth}x${result.outputHeight}.png`}
+                  download={`clearlens-${result.model}-${result.dataset ?? dataset}-${result.outputWidth}x${result.outputHeight}.png`}
                   className="btn btn-primary btn-sm"
                 >
                   Download PNG
@@ -243,9 +274,8 @@ export default function StudioWorkspace() {
               </svg>
               <p className="mt-4 text-sm font-medium">Your result will appear here</p>
               <p className="mt-1 max-w-sm text-sm text-base-content/50">
-                Pick an image and a model on the left, then run the de-haze.
-                You&apos;ll be able to compare before and after and download the
-                restored PNG.
+                Pick an image, model, and dataset on the left, then run the de-haze
+                to compare before and after.
               </p>
             </div>
           )}

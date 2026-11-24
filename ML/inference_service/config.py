@@ -10,16 +10,22 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from dotenv import load_dotenv
-
-
-# Absolute path of the "ML" directory (parent of this file's folder).
-ML_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BASELINES_DIR = os.path.join(ML_DIR, "baselines")
-DEHAMER_DIR = os.path.join(BASELINES_DIR, "DeHamer")
-DEHAZEFORMER_DIR = os.path.join(BASELINES_DIR, "DehazeFormer")
-DRNET_DIR = os.path.join(ML_DIR, "third_party", "DRNet-AiO")
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+except ImportError:
+    # Optional fallback parser if python-dotenv is not installed
+    env_file = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.isfile(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")
+                    if k not in os.environ:
+                        os.environ[k] = v
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
