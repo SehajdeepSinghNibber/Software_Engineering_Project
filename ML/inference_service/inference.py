@@ -63,9 +63,9 @@ def predict(
             if name == "drnet":
                 tensor, crop_box = prepare_drnet_tensor(img)
                 input_size = max(img.size)
-            elif name == "dehamer":
-                tensor, crop_box = prepare_dehamer_tensor(img)
-                input_size = max(img.size)
+            elif norm == "dehamer":
+                tensor, crop_box = prepare_dehamer_tensor(img, info.get("max_side"), info["divisible"])
+                input_size = max(crop_box[2], crop_box[3])
             else:
                 tensor, crop_box = prepare_native_tensor(img, norm, info.get("max_side"))
                 input_size = max(crop_box[2], crop_box[3])
@@ -112,7 +112,8 @@ def predict(
     # ---- post-process -----------------------------------------------------
     original_size = (img.width, img.height) if return_original_size else None
     try:
-        png_bytes = tensor_to_png(output, norm, crop_box, original_size)
+        output_norm = info.get("output_norm", norm)
+        png_bytes = tensor_to_png(output, output_norm, crop_box, original_size)
     except Exception as exc:
         raise InferenceFailedError(f"Could not encode the model output: {exc}") from exc
 

@@ -21,7 +21,7 @@ export default function StudioWorkspace() {
 
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [modelId, setModelId] = useState("dehazeformer_b_rice1");
+  const [modelId, setModelId] = useState("dehamer");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<DehazeResult | null>(null);

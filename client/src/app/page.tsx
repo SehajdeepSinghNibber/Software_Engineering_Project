@@ -94,6 +94,7 @@ const USE_CASES: { icon: LucideIcon; title: string; body: string }[] = [
 
 const MODEL_ICONS: Record<string, LucideIcon> = {
   drnet: Layers3,
+  dehamer: Layers3,
 };
 
 /** Auth-aware primary action routes people into the real Studio flow. */

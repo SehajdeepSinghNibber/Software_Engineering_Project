@@ -9,12 +9,19 @@ PyTorch inside the web server.
 | Name | Architecture | Input range | Default size |
 | ---- | ------------ | ----------- | ------------ |
 | `drnet` | DRNet 3-task (`ML/third_party/DRNet-AiO`) | `[0, 1]` RGB | Native image resolution (padded to 64px windows) |
-| `dehamer` | Official DeHamer (`ML/baselines/DeHamer`) | `[0, 1]` RGB | Native resolution (padded to a multiple of 16) |
+| `dehamer` | Dehamer, CVPR 2022 (`ML/baselines/DeHamer`, official RESIDE-OTS checkpoint) | RGB normalised with mean `(0.64, 0.6, 0.58)`, std `(0.14, 0.15, 0.152)`; outputs `[0, 1]` | Native resolution up to 1024px longest side (reflect-padded to 16px) |
+
+Install the Dehamer weights (~0.5 GB, from the authors' Google Drive) with
+`npm run weights:dehamer`. The installer checks the pinned SHA-256, strictly
+verifies the checkpoint against the architecture, drops the unused
+`swin_2`/`swin_3` training branches, and writes `ML/checkpoints/pretrained/dehamer_outdoor.pt`.
+Dehamer is a ~132M-parameter transformer: expect ~10 s per 1-megapixel image on CPU.
 
 Both models preserve the upload's aspect ratio and native dimensions. DRNet
 uses its dehazing task prompt and pads to a 64-pixel processing boundary.
-DeHamer pads only the bottom and right edges to a multiple of 16, then the
-shared postprocessor crops the output to the original dimensions. Inference is
+DeHamer normalises input with the authors' mean/std, reflect-pads the bottom
+and right edges to a multiple of 16, and the shared postprocessor crops the
+output back to the original dimensions. Inference is
 refused if the selected model's checkpoint is missing or incompatible; random
 initialization is never exposed.
 
@@ -32,7 +39,7 @@ Important ones:
 | -------- | ------- | ------- |
 | `ML_MODEL_TYPE` | `drnet` | Default model for `/predict` |
 | `ML_DRNET_MODEL_PATH` | `ML/checkpoints/DRNet_3tasks.pth` | Optional explicit path to the official 3-task weights |
-| `ML_DEHAMER_MODEL_PATH` | `ML/checkpoints/DeHamer/NH/PSNR2066_SSIM06844.pt` | Optional path to the official DeHamer NH-HAZE checkpoint |
+| `ML_DEHAMER_MODEL_PATH` | `ML/checkpoints/pretrained/dehamer_outdoor.pt` | Optional path to a cleaned DeHamer checkpoint (see below) |
 | `ML_INPUT_SIZE` | *(unused for DRNet)* | DRNet runs at native image resolution |
 | `ML_DEVICE` | `auto` | `cpu` / `cuda` / `auto` |
 
@@ -86,32 +93,25 @@ Errors are returned as JSON: `{"detail": "<message>"}`.
 
 ## DeHamer checkpoint setup
 
-The official repository publishes pretrained checkpoints for Dense-Haze,
-NH-HAZE, indoor, and outdoor evaluation. For this project's NH-HAZE work, use
-the official NH-HAZE checkpoint named `PSNR2066_SSIM06844.pt`. The official
-checkpoint list does not include an O-HAZE-specific model; evaluate the NH
-checkpoint on O-HAZE as a cross-dataset evaluation, and report that distinction.
-
-Download the checkpoint archive from the authors' [official Google Drive
-folder](https://drive.google.com/drive/folders/1YZnKreDfqbs_GHB76Ko4qtifpPWPbCwU),
-then place the NH checkpoint here:
+The authors publish checkpoints for Dense-Haze, NH-HAZE, indoor and outdoor
+data in their [official Google Drive folder](https://drive.google.com/drive/folders/1YZnKreDfqbs_GHB76Ko4qtifpPWPbCwU).
+This project serves the outdoor (RESIDE-OTS) checkpoint. Install it with:
 
 ```text
-ML/checkpoints/DeHamer/NH/PSNR2066_SSIM06844.pt
+npm run weights:dehamer
 ```
 
-Alternatively set `ML_DEHAMER_MODEL_PATH` in the inference service environment
-to the checkpoint's absolute path. Checkpoints are ignored by Git. The loader
-uses PyTorch's restricted `weights_only=True` loading, removes the official
-`module.` DataParallel prefix if present, and requires an exact match against
-`UNet_emb`; missing or incompatible weights produce a clear error. No new
-packages are required beyond `ML/inference_service/requirements.txt`.
+`download_dehamer_weights.py` downloads `ckpts/outdoor/PSNR3518_SSIM09860.pt`,
+checks its pinned SHA-256, removes the `module.` DataParallel prefix and the
+`swin_2`/`swin_3` branches that upstream's `UNet_emb` never builds (upstream
+loads with `strict=False`), verifies an exact `strict=True` match, and writes
+`ML/checkpoints/pretrained/dehamer_outdoor.pt`. Raw upstream checkpoints are
+not accepted directly by `ML_DEHAMER_MODEL_PATH` because of those extra keys.
 
-Once installed, the existing frontend's live catalog and picker can select
-DeHamer without a frontend change. The request and response contract stays the
-same as for DRNet; set the multipart `model` field to `dehamer`. `drnet`
-remains the default, with its architecture and checkpoint independent of
-DeHamer.
+`ML/baselines/DeHamer/MIRNet.py` must stay identical to upstream; a simplified
+`MSRB` leaves part of the network untrained and produces a strong colour cast.
+Set the multipart `model` field to `dehamer` to select it; `drnet` remains the
+default and is independent of DeHamer.
 
 ## Notes for production
 

@@ -109,9 +109,9 @@ Backend base URL: `http://127.0.0.1:8000/api/v1`
 | `GET` | `/ml/models` | public | List models exposed by the inference service |
 | `GET` | `/ml/health` | public | Inference service liveness |
 
-Supported models are `drnet` (default) and `dehamer`. Install the official
-DeHamer NH-HAZE checkpoint as described in `ML/inference_service/README.md` to
-enable the second option. Both models use separate checkpoints and share the
+Supported models include `drnet` (default) and `dehamer`. Install the official
+DeHamer outdoor checkpoint with `npm run weights:dehamer` (see
+`ML/inference_service/README.md`) to enable it. Both models use separate checkpoints and share the
 same upload/response contract. The backend
 validates every request (file presence, allowed image types, size limits
 `ML_MAX_FILE_SIZE_MB`, model id, per-model size constraints) and maps upstream

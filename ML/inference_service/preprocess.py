@@ -84,24 +84,37 @@ def prepare_drnet_tensor(
     return tensor, (0, 0, h, w)
 
 
-def prepare_dehamer_tensor(
-    img: Image.Image,
-) -> tuple[torch.Tensor, tuple[int, int, int, int]]:
-    """Prepare RGB input for DeHamer without resizing or changing aspect.
+#: Per-channel statistics used by Dehamer's official ``val_data.py``.
+DEHAMER_MEAN = (0.64, 0.6, 0.58)
+DEHAMER_STD = (0.14, 0.15, 0.152)
 
-    The CNN encoder has four stride-2 pooling stages. Padding only the bottom
-    and right edges to a multiple of 16 keeps those stages aligned; the output
-    is cropped back to the original frame by the shared postprocessor.
+
+def prepare_dehamer_tensor(
+    img: Image.Image, max_side: int | None = None, multiple: int = 16
+) -> tuple[torch.Tensor, tuple[int, int, int, int]]:
+    """Match Dehamer's official test pipeline.
+
+    Upstream normalises with dataset statistics and crops to a multiple of 16;
+    we reflect-pad instead so no border pixels are lost, then crop back.
+    The network outputs RGB in ``[0, 1]``.
     """
     w, h = img.size
+    scale = min(1.0, max_side / max(w, h)) if max_side else 1.0
+    new_w = max(1, round(w * scale))
+    new_h = max(1, round(h * scale))
+    if (new_w, new_h) != img.size:
+        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
     array = np.asarray(img, dtype=np.float32) / 255.0
+    array = (array - np.array(DEHAMER_MEAN, dtype=np.float32)) / np.array(DEHAMER_STD, dtype=np.float32)
     tensor = torch.from_numpy(array).permute(2, 0, 1).unsqueeze(0).contiguous()
-    pad_h = (-h) % 16
-    pad_w = (-w) % 16
+
+    pad_h = (-new_h) % multiple
+    pad_w = (-new_w) % multiple
     if pad_h or pad_w:
-        mode = "reflect" if h > pad_h and w > pad_w and h > 1 and w > 1 else "replicate"
+        mode = "reflect" if new_h > pad_h and new_w > pad_w else "replicate"
         tensor = F.pad(tensor, (0, pad_w, 0, pad_h), mode=mode)
-    return tensor, (0, 0, h, w)
+    return tensor, (0, 0, new_h, new_w)
 
 
 def prepare_native_tensor(

@@ -128,26 +128,6 @@ MODEL_REGISTRY: dict[str, dict[str, Any]] = {
         "norm": "01",
         "prompt": [0.0, 1.0, 0.0],
     },
-    "dehamer": {
-        "build": _build_dehamer,
-        "description": (
-            "Official DeHamer image dehazing transformer using the authors' "
-            "NH-HAZE pretrained checkpoint."
-        ),
-        "display_name": "DeHamer · NH-HAZE",
-        "architecture": "Transmission-Aware 3D Position Embedding Transformer with CNN encoder/decoder",
-        "trained_on": "NH-HAZE",
-        "default_size": None,
-        "divisible": 16,
-        "native_resolution": True,
-        "norm": "01",
-        "checkpoint_path": os.path.join(
-            ML_DIR, "checkpoints", "DeHamer", "NH", "PSNR2066_SSIM06844.pt"
-        ),
-        "source_repo": "https://github.com/Li-Chongyi/Dehamer",
-        "license": "MIT",
-        "open_source": True,
-    },
     "aodnet": {
         "build": _build_aod,
         "description": "AOD-Net pretrained on synthetic NYU haze; a lightweight baseline for comparison.",
@@ -182,6 +162,32 @@ MODEL_REGISTRY: dict[str, dict[str, Any]] = {
     },
 }
 
+#: Official Dehamer (CVPR 2022) RESIDE-OTS checkpoint, installed (and
+#: strictly verified) by ``download_dehamer_weights.py``.
+DEHAMER_CHECKPOINT = os.path.join(ML_DIR, "checkpoints", "pretrained", "dehamer_outdoor.pt")
+
+MODEL_REGISTRY["dehamer"] = {
+    "build": _build_dehamer,
+    "description": (
+        "Dehamer: Swin-Transformer dehazing with transmission-aware 3D position "
+        "embedding (Guo et al., CVPR 2022), official RESIDE OTS checkpoint."
+    ),
+    "display_name": "Dehamer · Outdoor",
+    "architecture": "Transmission-aware Dehazing Transformer (Dehamer)",
+    "trained_on": "RESIDE OTS (synthetic outdoor haze)",
+    "default_size": None,
+    "divisible": 16,
+    "native_resolution": True,
+    "max_side": 1024,
+    # Dehamer consumes mean/std-normalised RGB and emits [0, 1] RGB.
+    "norm": "dehamer",
+    "output_norm": "01",
+    "checkpoint_path": DEHAMER_CHECKPOINT,
+    "source_repo": "https://github.com/Li-Chongyi/Dehamer",
+    "license": "MIT",
+    "open_source": True,
+}
+
 for _model_id, _spec in DEHAZEFORMER_SPECS.items():
     if not _model_id.startswith("dehazeformer_b_"):
         continue
@@ -205,6 +211,7 @@ for _model_id, _spec in DEHAZEFORMER_SPECS.items():
 _catalog_order = (
     "dehazeformer_b_rice1",
     "dehazeformer_b_outdoor",
+    "dehamer",
     "aodnet",
     "lightdehazenet",
     "drnet",
@@ -265,13 +272,6 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
             raise ModelLoadError(f"Could not load pretrained weights for '{name}': {exc}") from exc
         return "trained"
     if not path:
-        if name == "dehamer":
-            raise ModelLoadError(
-                "The official DeHamer NH-HAZE checkpoint is missing. Download "
-                "PSNR2066_SSIM06844.pt from the official DeHamer checkpoint "
-                "folder and place it at ML/checkpoints/DeHamer/NH/"
-                "PSNR2066_SSIM06844.pt, or set ML_DEHAMER_MODEL_PATH."
-            )
         raise ModelLoadError(
             f"Pretrained weights for '{name}' are missing. Download the official "
             "DRNet 3-task checkpoint to ML/checkpoints/DRNet_3tasks.pth or set "
@@ -282,11 +282,8 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
         if explicit:
             if name == "dehamer":
                 raise ModelLoadError(
-                    "The official DeHamer NH-HAZE checkpoint is missing. "
-                    "Download PSNR2066_SSIM06844.pt from the official DeHamer "
-                    "checkpoint folder and place it at "
-                    "ML/checkpoints/DeHamer/NH/PSNR2066_SSIM06844.pt, or set "
-                    "ML_DEHAMER_MODEL_PATH."
+                    f"The official Dehamer checkpoint is missing at {path}. Run "
+                    "`npm run weights:dehamer`, or set ML_DEHAMER_MODEL_PATH."
                 )
             raise ModelLoadError(
                 f"Configured checkpoint for '{name}' does not exist: {path}"
@@ -424,11 +421,7 @@ def list_models() -> list[dict[str, Any]]:
         if info.get("managed_weights"):
             install_hint = f"Run `npm run weights:dehazeformer` to install {info['display_name']} weights."
         elif name == "dehamer":
-            install_hint = (
-                "Download the official NH-HAZE checkpoint and place it at "
-                "ML/checkpoints/DeHamer/NH/PSNR2066_SSIM06844.pt, or configure "
-                "ML_DEHAMER_MODEL_PATH."
-            )
+            install_hint = "Run `npm run weights:dehamer` to install the official Dehamer checkpoint."
         elif name in {"aodnet", "lightdehazenet"}:
             install_hint = "Run `npm run weights:models` to install the pretrained comparison weights."
         else:

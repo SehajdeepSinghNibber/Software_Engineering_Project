@@ -25,7 +25,12 @@ const ALLOWED_EXTENSIONS = new Set([
     "jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff",
 ]);
 
+// Must mirror MODEL_REGISTRY in ML/inference_service/model_loader.py.
 const ALLOWED_MODELS = new Set([
+    "dehazeformer_b_rice1",
+    "dehazeformer_b_outdoor",
+    "aodnet",
+    "lightdehazenet",
     "drnet",
     "dehamer",
 ]);

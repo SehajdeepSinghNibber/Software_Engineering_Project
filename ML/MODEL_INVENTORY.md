@@ -35,3 +35,11 @@ The active model is the user-selected `AVC2-UESTC/DRNet-AiO` 3-task DRNet dehazi
 The AOD source, training implementation, and checkpoint listed above remain intact on disk. Other experimental model files that were already in the working tree are retained but not registered or selectable.
 
 The upstream README displays an MIT license badge, but the fetched repository revision does not contain the referenced `LICENSE` file. The code is integrated at the user's explicit direction, but the repository's license terms could not be independently verified from a license text; confirm with the authors before redistributing commercially.
+
+## Dehamer (CVPR 2022)
+
+Official implementation: https://github.com/Li-Chongyi/Dehamer (MIT; `ML/baselines/DeHamer/LICENSE`).
+`ML/baselines/DeHamer/` mirrors upstream `src/` (`MIRNet.py` was restored to the upstream file so the
+official checkpoints load strictly). The official RESIDE-OTS checkpoint is registered as `dehamer` (file `ML/checkpoints/pretrained/dehamer_outdoor.pt`);
+install it with `npm run weights:dehamer`
+(`ML/inference_service/download_dehamer_weights.py`).

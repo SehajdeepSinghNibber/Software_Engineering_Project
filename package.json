@@ -11,6 +11,7 @@
     "train:ml": "ML\\inference_service\\.venv\\Scripts\\python.exe ML\\training\\train_aod.py",
     "weights:drnet": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 download_drnet_weights.py",
     "weights:dehazeformer": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 download_weights.py dehazeformer_b_rice1 dehazeformer_b_outdoor",
+    "weights:dehamer": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 download_dehamer_weights.py",
     "weights:models": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 download_weights.py --all",
     "datasets:download": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 ..\\evaluation\\download_datasets.py",
     "datasets:benchmark": "powershell -NoProfile -ExecutionPolicy Bypass -File ML\\inference_service\\start.ps1 ..\\evaluation\\benchmark.py",

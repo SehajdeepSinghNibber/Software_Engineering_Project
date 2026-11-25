@@ -96,6 +96,7 @@ const buildMultipart = (fields, filePath, filename = "hazy_test.jpg") => {
 const SUCCESS_TESTS = [
     { name: "drnet", fields: { model: "drnet" } },
     { name: "default drnet model", fields: {} },
+    { name: "dehamer", fields: { model: "dehamer" } },
 ];
 
 
@@ -201,7 +202,8 @@ const runSuite = async () => {
     check(
         "GET /models lists supported models",
         res.statusCode === 200 &&
-            modelNames.length === 1 && modelNames[0] === "drnet"
+            modelNames.includes("drnet") && modelNames.includes("dehamer"),
+        `got ${JSON.stringify(modelNames)}`
     );
 
     // --- the real app enforces JWT auth on /dehaze by default --------------
