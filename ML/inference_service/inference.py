@@ -9,7 +9,13 @@ import torch
 import model_loader
 from config import settings
 from postprocess import tensor_to_png
-from preprocess import decode_image, prepare_drnet_tensor, prepare_native_tensor, prepare_tensor
+from preprocess import (
+    decode_image,
+    prepare_dehamer_tensor,
+    prepare_drnet_tensor,
+    prepare_native_tensor,
+    prepare_tensor,
+)
 
 
 class BadRequestError(ValueError):
@@ -56,6 +62,9 @@ def predict(
                 raise BadRequestError(f"{info.get('display_name', name)} processes native resolution; omit 'size'.")
             if name == "drnet":
                 tensor, crop_box = prepare_drnet_tensor(img)
+                input_size = max(img.size)
+            elif name == "dehamer":
+                tensor, crop_box = prepare_dehamer_tensor(img)
                 input_size = max(img.size)
             else:
                 tensor, crop_box = prepare_native_tensor(img, norm, info.get("max_side"))

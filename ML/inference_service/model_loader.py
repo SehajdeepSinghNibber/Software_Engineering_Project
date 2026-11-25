@@ -52,7 +52,7 @@ def _load_module(name: str, path: str):
 
 
 def _build_dehamer() -> torch.nn.Module:
-    """Build the Dehamer Swin-Transformer U-Net (``swin_unet.UNet_emb``)."""
+    """Build the project's vendored official DeHamer ``UNet_emb`` model."""
     if DEHAMER_DIR not in sys.path:
         sys.path.insert(0, DEHAMER_DIR)
     try:
@@ -127,6 +127,26 @@ MODEL_REGISTRY: dict[str, dict[str, Any]] = {
         "native_resolution": True,
         "norm": "01",
         "prompt": [0.0, 1.0, 0.0],
+    },
+    "dehamer": {
+        "build": _build_dehamer,
+        "description": (
+            "Official DeHamer image dehazing transformer using the authors' "
+            "NH-HAZE pretrained checkpoint."
+        ),
+        "display_name": "DeHamer · NH-HAZE",
+        "architecture": "Transmission-Aware 3D Position Embedding Transformer with CNN encoder/decoder",
+        "trained_on": "NH-HAZE",
+        "default_size": None,
+        "divisible": 16,
+        "native_resolution": True,
+        "norm": "01",
+        "checkpoint_path": os.path.join(
+            ML_DIR, "checkpoints", "DeHamer", "NH", "PSNR2066_SSIM06844.pt"
+        ),
+        "source_repo": "https://github.com/Li-Chongyi/Dehamer",
+        "license": "MIT",
+        "open_source": True,
     },
     "aodnet": {
         "build": _build_aod,
@@ -212,11 +232,11 @@ def _checkpoint_path(name: str) -> tuple[str | None, bool]:
     info = MODEL_REGISTRY.get(name, {})
     if info.get("managed_weights"):
         return managed_weights_path(name), True
-    if info.get("checkpoint_path"):
-        return info["checkpoint_path"], True
     specific_path = os.getenv(f"ML_{name.upper()}_MODEL_PATH")
     if specific_path:
         return specific_path, True
+    if info.get("checkpoint_path"):
+        return info["checkpoint_path"], True
     if name == settings.default_model and settings.model_path:
         return settings.model_path, True
 
@@ -245,6 +265,13 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
             raise ModelLoadError(f"Could not load pretrained weights for '{name}': {exc}") from exc
         return "trained"
     if not path:
+        if name == "dehamer":
+            raise ModelLoadError(
+                "The official DeHamer NH-HAZE checkpoint is missing. Download "
+                "PSNR2066_SSIM06844.pt from the official DeHamer checkpoint "
+                "folder and place it at ML/checkpoints/DeHamer/NH/"
+                "PSNR2066_SSIM06844.pt, or set ML_DEHAMER_MODEL_PATH."
+            )
         raise ModelLoadError(
             f"Pretrained weights for '{name}' are missing. Download the official "
             "DRNet 3-task checkpoint to ML/checkpoints/DRNet_3tasks.pth or set "
@@ -253,6 +280,14 @@ def _apply_checkpoint(model: torch.nn.Module, name: str) -> str:
 
     if not os.path.isfile(path):
         if explicit:
+            if name == "dehamer":
+                raise ModelLoadError(
+                    "The official DeHamer NH-HAZE checkpoint is missing. "
+                    "Download PSNR2066_SSIM06844.pt from the official DeHamer "
+                    "checkpoint folder and place it at "
+                    "ML/checkpoints/DeHamer/NH/PSNR2066_SSIM06844.pt, or set "
+                    "ML_DEHAMER_MODEL_PATH."
+                )
             raise ModelLoadError(
                 f"Configured checkpoint for '{name}' does not exist: {path}"
             )
@@ -388,6 +423,12 @@ def list_models() -> list[dict[str, Any]]:
         available = bool(checkpoint and os.path.isfile(checkpoint))
         if info.get("managed_weights"):
             install_hint = f"Run `npm run weights:dehazeformer` to install {info['display_name']} weights."
+        elif name == "dehamer":
+            install_hint = (
+                "Download the official NH-HAZE checkpoint and place it at "
+                "ML/checkpoints/DeHamer/NH/PSNR2066_SSIM06844.pt, or configure "
+                "ML_DEHAMER_MODEL_PATH."
+            )
         elif name in {"aodnet", "lightdehazenet"}:
             install_hint = "Run `npm run weights:models` to install the pretrained comparison weights."
         else:

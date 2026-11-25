@@ -27,6 +27,7 @@ const ALLOWED_EXTENSIONS = new Set([
 
 const ALLOWED_MODELS = new Set([
     "drnet",
+    "dehamer",
 ]);
 
 
@@ -187,7 +188,12 @@ export const dehaze = async (request, reply) => {
 export const models = async (request, reply) => {
     try {
         const payload = await listModels();
-        return reply.code(200).send({ success: true, data: payload });
+        // Keep the public catalog aligned with the request allowlist so the
+        // unchanged frontend never offers a model this API would reject.
+        const catalog = Array.isArray(payload?.models)
+            ? { ...payload, models: payload.models.filter((model) => ALLOWED_MODELS.has(model.name)) }
+            : payload;
+        return reply.code(200).send({ success: true, data: catalog });
     } catch (error) {
         if (error instanceof MLServiceError) {
             return sendError(reply, error.statusCode, error.message);
