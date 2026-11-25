@@ -84,6 +84,26 @@ def prepare_drnet_tensor(
     return tensor, (0, 0, h, w)
 
 
+def prepare_dehamer_tensor(
+    img: Image.Image,
+) -> tuple[torch.Tensor, tuple[int, int, int, int]]:
+    """Prepare RGB input for DeHamer without resizing or changing aspect.
+
+    The CNN encoder has four stride-2 pooling stages. Padding only the bottom
+    and right edges to a multiple of 16 keeps those stages aligned; the output
+    is cropped back to the original frame by the shared postprocessor.
+    """
+    w, h = img.size
+    array = np.asarray(img, dtype=np.float32) / 255.0
+    tensor = torch.from_numpy(array).permute(2, 0, 1).unsqueeze(0).contiguous()
+    pad_h = (-h) % 16
+    pad_w = (-w) % 16
+    if pad_h or pad_w:
+        mode = "reflect" if h > pad_h and w > pad_w and h > 1 and w > 1 else "replicate"
+        tensor = F.pad(tensor, (0, pad_w, 0, pad_h), mode=mode)
+    return tensor, (0, 0, h, w)
+
+
 def prepare_native_tensor(
     img: Image.Image, norm: str, max_side: int | None = None
 ) -> tuple[torch.Tensor, tuple[int, int, int, int]]:

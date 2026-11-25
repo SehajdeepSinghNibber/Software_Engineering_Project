@@ -228,7 +228,3 @@ class dehamer(object):
 
         train_elapsed = time_elapsed_since(train_start)[0]
         print('Training done! Total elapsed time: {}\n'.format(train_elapsed))
-
-
-
-
